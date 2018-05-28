@@ -22,6 +22,7 @@ ex = Experiment('Waveunet')
 def cfg():
     # Base configuration
     model_config = {"musdb_path" : "/home/daniel/Datasets/MUSDB18", # SET MUSDB PATH HERE, AND SET CCMIXTER PATH IN CCMixter.xml
+                    "estimates_path" : "/mnt/windaten/Source_Estimates", # SET THIS PATH TO WHERE YOU WANT SOURCE ESTIMATES PRODUCED BY THE TRAINED MODEL TO BE SAVED. Folder itself must exist!
 
                     "model_base_dir" : "checkpoints", # Base folder for model checkpoints
                     "log_dir" : "logs", # Base folder for logs files
@@ -400,4 +401,4 @@ def dsd_100_experiment(model_config):
     # Optimize in a +supervised fashion until validation loss worsens
     sup_model_path, sup_loss = optimise(dataset=dataset)
     print("Supervised training finished! Saved model at " + sup_model_path + ". Performance: " + str(sup_loss))
-    Evaluate.produce_source_estimates(model_config, sup_model_path, "/mnt/daten/Datasets/MUSDB18", "/mnt/windaten/Source_Estimates", "train")
+    Evaluate.produce_source_estimates(model_config, sup_model_path, model_config["musdb_path"], model_config["estimates_path"], "train")
