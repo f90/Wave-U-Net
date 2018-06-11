@@ -1,8 +1,8 @@
 # Wave-U-Net
-Implementation of the [Wave-U-Net] for audio source separation.
+Implementation of the [Wave-U-Net](https://arxiv.org/abs/1806.03185) for audio source separation.
 
 ## What is the Wave-U-Net?
-The Wave-U-Net is a convolutional neural network applicable to audio source separation tasks, which works directly on the raw audio waveform, presented in [this paper].
+The Wave-U-Net is a convolutional neural network applicable to audio source separation tasks, which works directly on the raw audio waveform, presented in [this paper](https://arxiv.org/abs/1806.03185).
 
 The Wave-U-Net is an adaptation of the U-Net architecture to the one-dimensional time domain to perform end-to-end audio source separation. Through a series of downsampling and upsampling blocks, which involve 1D convolutions combined with a down-/upsampling process, features are computed on multiple scales/levels of abstraction and time resolution, and combined to make a prediction.
 
