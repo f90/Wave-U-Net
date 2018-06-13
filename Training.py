@@ -43,7 +43,7 @@ def cfg():
                     'mono_downmix': True,  # Whether to downsample the audio input
                     'output_type' : 'direct', # Type of output layer, either "direct" or "difference". Direct output: Each source is result of tanh activation and independent. DIfference: Last source output is equal to mixture input - sum(all other sources)
                     'context' : False, # Type of padding for convolutions in separator. If False, feature maps double or half in dimensions after each convolution, and convolutions are padded with zeros ("same" padding). If True, convolution is only performed on the available mixture input, thus the output is smaller than the input
-                    'network' : 'unet', # Type of network architecture, either unet or dilated,
+                    'network' : 'unet', # Type of network architecture, either unet (our model) or unet_spectrogram (Jansson et al 2017 model)
                     'upsampling' : 'linear', # Type of technique used for upsampling the feature maps in a unet architecture, either 'linear' interpolation or 'learned' filling in of extra samples
                     'task' : 'voice', # Type of separation task. 'voice' : Separate music into voice and accompaniment. 'multi_instrument': Separate music into guitar, bass, vocals, drums and other (Sisec)
                     'augmentation' : True, # Random attenuation of source signals to improve generalisation performance (data augmentation)
@@ -114,35 +114,6 @@ def full_multi_instrument():
         "mono_downmix": False,
         "task" : "multi_instrument"
     }
-
-@ex.named_config
-def dilated():
-    model_config = {
-        "num_initial_filters": 16,
-        "batch_size": 2, # Less output since model is so big. Doesn't matter since the model's output is not dependent on its output or input size (only convolutions)
-        "cache_size": 2,
-        "min_replacement_rate" : 2,
-        "network" : "dilated",
-        "output_type": "difference",
-        "context": True,
-        "mono_downmix": False
-    }
-    print("Training dilated model with same settings as other best model")
-
-@ex.named_config
-def dilated_multi_instrument():
-    model_config = {
-        "num_initial_filters": 16,
-        "batch_size": 2, # Less output since model is so big. Doesn't matter since the model's output is not dependent on its output or input size (only convolutions)
-        "cache_size": 2,
-        "min_replacement_rate" : 2,
-        "network" : "dilated",
-        "output_type": "difference",
-        "context": True,
-        "mono_downmix": False,
-        "task": "multi_instrument",
-    }
-    print("Training multi-instrument, dilated model with same settings as other best model")
 
 @ex.named_config
 def baseline_comparison():
