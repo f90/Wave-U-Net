@@ -10,7 +10,7 @@ class UnetSpectrogramSeparator:
     '''
     U-Net separator network for singing voice separation.
     Takes in the mixture magnitude spectrogram and return estimates of the accompaniment and voice magnitude spectrograms.
-    Uses valid convolutions, so it predicts for the centre part of the input - only certain input and output shapes are therefore possible (see getUnetPadding)
+    Uses "same" convolutions like in original paper
     '''
 
     def __init__(self, num_layers, num_initial_filters, mono, num_sources):
@@ -39,10 +39,12 @@ class UnetSpectrogramSeparator:
     def get_output(self, input, training, return_spectrogram=False, reuse=True):
         '''
         Creates symbolic computation graph of the U-Net for a given input batch
-        :param input: Input batch of mixtures, 4D tensor [batch_size, freqs, time_frames, 1]
+        :param input: Input batch of mixtures, 3D tensor [batch_size, num_samples, 1], mono raw audio
         :param reuse: Whether to create new parameter variables or reuse existing ones
-        :return: U-Net output: Log-normalized accompaniment and voice magnitudes as two 4D tensors
+        :Param return_spectrogram: Whether to output the spectrogram estimate or convert it to raw audio and return that
+        :return: U-Net output: If return_spectrogram: Accompaniment and voice magnitudes as length-two list with two 4D tensors. Otherwise Two 3D tensors containing the raw audio estimates
         '''
+        # Setup STFT computation
         window = functools.partial(window_ops.hann_window, periodic=True)
         inv_window = tf.contrib.signal.inverse_stft_window_fn(self.hop, forward_window_fn=window)
         with tf.variable_scope("separator", reuse=reuse):
