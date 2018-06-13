@@ -8,8 +8,7 @@ import OutputLayer
 class UnetAudioSeparator:
     '''
     U-Net separator network for singing voice separation.
-    Takes in the mixture magnitude spectrogram and return estimates of the accompaniment and voice magnitude spectrograms.
-    Uses valid convolutions, so it predicts for the centre part of the input - only certain input and output shapes are therefore possible (see getUnetPadding)
+    Uses valid convolutions, so it predicts for the centre part of the input - only certain input and output shapes are therefore possible (see getpadding function)
     '''
 
     def __init__(self, num_layers, num_initial_filters, upsampling, output_type, context, num_sources, mono, filter_size, merge_filter_size):
@@ -43,7 +42,7 @@ class UnetAudioSeparator:
                 rem = rem + self.merge_filter_size - 1
                 rem = (rem + 1.) / 2.# out = in + in - 1 <=> in = (out+1)/
 
-            # Round resulting feature map dimensions up to nearest EVEN integer (even because up-convolution by factor two is needed)
+            # Round resulting feature map dimensions up to nearest integer
             x = np.asarray(np.ceil(rem),dtype=np.int64)
             assert(x >= 2)
 
@@ -73,9 +72,9 @@ class UnetAudioSeparator:
     def get_output(self, input, training=None, return_spectrogram=False, reuse=True):
         '''
         Creates symbolic computation graph of the U-Net for a given input batch
-        :param input: Input batch of mixtures, 4D tensor [batch_size, freqs, time_frames, 1]
+        :param input: Input batch of mixtures, 3D tensor [batch_size, num_samples, num_channels]
         :param reuse: Whether to create new parameter variables or reuse existing ones
-        :return: U-Net output: Log-normalized accompaniment and voice magnitudes as two 4D tensors
+        :return: U-Net output: List of source estimates. Each item is a 3D tensor [batch_size, num_out_samples, num_channels]
         '''
         with tf.variable_scope("separator", reuse=reuse):
             enc_outputs = list()
