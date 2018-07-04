@@ -1,6 +1,10 @@
 # Wave-U-Net
 Implementation of the [Wave-U-Net](https://arxiv.org/abs/1806.03185) for audio source separation.
 
+## Listening examples
+
+Listen to vocal separation results [here](https://sisec18.unmix.app/#/unmix/Side%20Effects%20Project%20-%20Sing%20With%20Me/STL1) and to multi-instrument separation results [here](https://sisec18.unmix.app/#/unmix/Side%20Effects%20Project%20-%20Sing%20With%20Me/STL2)
+
 ## What is the Wave-U-Net?
 The Wave-U-Net is a convolutional neural network applicable to audio source separation tasks, which works directly on the raw audio waveform, presented in [this paper](https://arxiv.org/abs/1806.03185).
 
@@ -61,7 +65,7 @@ If you use CCMixter, open the ``CCMixter.xml`` in the main repository folder, an
 
 ## Training/running the experiments
 
-Since the paper investigates many model variants of the Wave-U-Net and also trains the [U-Net proposed for vocal separation], which achieved state-of-the-art performance, as a comparison, we give a list of model variants to train and the command needed to start training them:
+Since the paper investigates many model variants of the Wave-U-Net and also trains the [U-Net proposed for vocal separation](https://ismir2017.smcnus.org/wp-content/uploads/2017/10/171_Paper.pdf), which achieved state-of-the-art performance, as a comparison, we give a list of model variants to train and the command needed to start training them:
 
 | Model name (from paper) | Description                                             | Separate vocals or multi-instrument? | Command for training                          |
 |-------------------------|---------------------------------------------------------|--------------------------------------|-----------------------------------------------|
