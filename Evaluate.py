@@ -16,34 +16,16 @@ import Models.UnetSpectrogramSeparator
 
 import musdb
 import museval
+import Utils
 
-
-def alpha_snr(target, estimate):
-    # Compute SNR: 10 log_10 ( ||s_target||^2 / ||s_target - alpha * s_estimate||^2 ), but scale target to get optimal SNR (opt. wrt. alpha)
-    # Optimal alpha is Sum_i=1(s_target_i * s_estimate_i) / Sum_i=1 (s_estimate_i ^ 2) = inner_prod / estimate_power
-    estimate_power = np.sum(np.square(estimate))
-    target_power = np.sum(np.square(target))
-    inner_prod = np.inner(estimate, target)
-    alpha = inner_prod / estimate_power
-    error_power = np.sum(np.square(target - alpha * estimate))
-    snr = 10 * np.log10(target_power / error_power)
-    return snr
-
-def predict(track):
+def predict(track, model_config, load_model, results_dir=None):
     '''
     Function in accordance with MUSB evaluation API. Takes MUSDB track object and computes corresponding source estimates, as well as calls evlauation script.
     Model has to be saved beforehand into a pickle file containing model configuration dictionary and checkpoint path!
     :param track: Track object
+    :param results_dir: Directory where SDR etc. values should be saved
     :return: Source estimates dictionary
     '''
-    '''if track.filename[:4] == "test" or int(track.filename[:3]) > 53:
-        return {
-            'vocals': np.zeros(track.audio.shape),
-            'accompaniment': np.zeros(track.audio.shape)
-        }'''
-    # Load model hyper-parameters and model checkpoint path
-    with open("prediction_params.pkl", "r") as file:
-        [model_config, load_model] = pickle.load(file)
 
     # Determine input and output shapes, if we use U-net as separator
     disc_input_shape = [model_config["batch_size"], model_config["num_frames"], 0]  # Shape of discriminator input
@@ -112,13 +94,12 @@ def predict(track):
             'vocals' : pred_audio[3]
         }
 
-    # Evaluate using museval
-    scores = museval.eval_mus_track(
-        track, estimates, output_dir="/mnt/daten/Datasets/MUSDB18/eval", # SiSec should use longer win and hop parameters here to make evaluation more stable!
-    )
+    # Evaluate using museval, if we are currently evaluating MUSDB
+    if results_dir is not None:
+        scores = museval.eval_mus_track(track, estimates, output_dir=results_dir)
 
-    # print nicely formatted mean scores
-    print(scores)
+        # print nicely formatted mean scores
+        print(scores)
 
     # Close session, clear computational graph
     sess.close()
@@ -179,21 +160,53 @@ def predict_track(model_config, sess, mix_audio, mix_sr, sep_input_shape, sep_ou
 
     return source_preds
 
-def produce_source_estimates(model_config, load_model, musdb_path, output_path, subsets=None):
+def produce_musdb_source_estimates(model_config, load_model, musdb_path, output_path, subsets=None):
     '''
     Predicts source estimates for MUSDB for a given model checkpoint and configuration, and evaluate them.
     :param model_config: Model configuration of the model to be evaluated
     :param load_model: Model checkpoint path
     :return: 
     '''
-    prediction_parameters = [model_config, load_model]
-    with open("prediction_params.pkl", "wb") as file:
-        pickle.dump(prediction_parameters, file)
+    print("Evaluating trained model saved at " + str(load_model)+ " on MUSDB and saving source estimate audio to " + str(output_path))
 
     mus = musdb.DB(root_dir=musdb_path)
-    #if mus.test(predict):
-    #    print "Function is valid"
-    mus.run(predict, estimates_dir=output_path, subsets=subsets)
+    predict_fun = lambda track : predict(track, model_config, load_model, output_path)
+    assert(mus.test(predict_fun))
+    mus.run(predict_fun, estimates_dir=output_path, subsets=subsets)
+
+def produce_source_estimates(model_config, load_model, input_path, output_path=None):
+    '''
+    For a given input mixture file, saves source predictions made by a given model.
+    :param model_config: Model configuration
+    :param load_model: Model checkpoint path
+    :param input_path: Path to input mixture audio file
+    :param output_path: Output directory where estimated sources should be saved. Defaults to the same folder as the input file, if not given
+    :return: Dictionary of source estimates containing the source signals as numpy arrays
+    '''
+    print("Producing source estimates for input mixture file " + input_path)
+    # Prepare input audio as track object (in the MUSDB sense), so we can use the MUSDB-compatible prediction function
+    audio, sr = Utils.load(input_path, sr=None, mono=False)
+    # Create something that looks sufficiently like a track object to our MUSDB function
+    class TrackLike(object):
+        def __init__(self, audio, rate, shape):
+            self.audio = audio
+            self.rate = rate
+            self.shape = shape
+    track = TrackLike(audio, sr, audio.shape)
+
+    sources_pred = predict(track, model_config, load_model) # Input track to prediction function, get source estimates
+
+    # Save source estimates as audio files into output dictionary
+    input_folder, input_filename = os.path.split(input_path)
+    if output_path is None:
+        # By default, set it to the input_path folder
+        output_path = input_folder
+    if not os.path.exists(output_path):
+        print("WARNING: Given output path " + output_path + " does not exist. Trying to create it...")
+        os.makedirs(output_path)
+    assert(os.path.exists(output_path))
+    for source_name, source_audio in sources_pred.items():
+        librosa.output.write_wav(os.path.join(output_path, input_filename) + "_" + source_name + ".wav", source_audio, sr)
 
 def compute_mean_metrics(json_folder, compute_averages=True):
     files = glob.glob(os.path.join(json_folder, "*.json"))
@@ -266,5 +279,3 @@ def draw_spectrogram(example_wav="musb_005_angela thomas wade_audio_model_withou
 
     fig.set_size_inches(7., 3.)
     fig.savefig("spectrogram_example.pdf", bbox_inches='tight')
-
-#compute_mean_metrics("/mnt/windaten/Source_Estimates/endtoend/", False)

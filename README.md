@@ -70,11 +70,24 @@ Since the paper investigates many model variants of the Wave-U-Net and also trai
 | Model name (from paper) | Description                                             | Separate vocals or multi-instrument? | Command for training                          |
 |-------------------------|---------------------------------------------------------|--------------------------------------|-----------------------------------------------|
 | M1                      | Baseline Wave-U-Net model                               | Vocals                               | ``python Training.py``                            |
-| M2                      | M1 + difference output layer                            | Vocals                               | ``python Training.py with baseline_diff``         |
-| M3                      | M2 + proper input context                               | Vocals                               | ``python Training.py with baseline_context``      |
-| M4                      | BEST-PERFORMING: M3 + Stereo I/O                        | Vocals                               | ``python Training.py with baseline_stereo``       |
-| M5                      | M4 + Learned upsampling layer                           | Vocals                               | ``python Training.py with full``                  |
-| M6                      | M4 applied to multi-instrument sep.                     | Multi-instrument                     | ``python Training.py with full_multi_instrument`` |
-| M7                      | Wave-U-Net model to compare with SotA models U7,U7a     | Vocals                               | ``python Training.py with baseline_comparison``   |
-| U7                      | U-Net replication from prior work, audio-based MSE loss | Vocals                               | ``python Training.py with unet_spectrogram``      |
-| U7a                     | Like U7, but with L1 magnitude loss                     | Vocals                               | ``python Training.py with unet_spectrogram_l1``   |
+| M2                      | M1 + difference output layer                            | Vocals                               | ``python Training.py with cfg.baseline_diff``         |
+| M3                      | M2 + proper input context                               | Vocals                               | ``python Training.py with cfg.baseline_context``      |
+| M4                      | BEST-PERFORMING: M3 + Stereo I/O                        | Vocals                               | ``python Training.py with cfg.baseline_stereo``       |
+| M5                      | M4 + Learned upsampling layer                           | Vocals                               | ``python Training.py with cfg.full``                  |
+| M6                      | M4 applied to multi-instrument sep.                     | Multi-instrument                     | ``python Training.py with cfg.full_multi_instrument`` |
+| M7                      | Wave-U-Net model to compare with SotA models U7,U7a     | Vocals                               | ``python Training.py with cfg.baseline_comparison``   |
+| U7                      | U-Net replication from prior work, audio-based MSE loss | Vocals                               | ``python Training.py with cfg.unet_spectrogram``      |
+| U7a                     | Like U7, but with L1 magnitude loss                     | Vocals                               | ``python Training.py with cfg.unet_spectrogram_l1``   |
+
+## Test (your own) trained models on songs!
+
+To output source predictions with a trained model, one can execute the Predict.py file, for example:
+
+`` python Predict.py with cfg.baseline_stereo model_path="checkpoints/120878/120878-20001" input_path="/mnt/medien/Daniel/Music/Dark Passion Play/Nightwish - Bye Bye Beautiful.mp3" output_path='/home/daniel'
+
+The ``model_path`` should point to the Tensorflow checkpoint name that contains the model and should match with the given model configuration (in this case baseline_stereo).
+The ``input_path`` needs to be set to the path to the input mixture file. Source signals are then saved in the same folder as the input file, except if the optional ``output_path`` specifies a custom output folder.
+
+## Known issues
+
+During the preparation of the MUSDB dataset, conversion to WAV can sometimes halt because of an ffmpeg process freezing that is used within the musdb python package to identify the datasets mp4 audio streams. This seems to be an error occurring upon the subprocess.Popen() used deep within the stempeg library. Due to its random nature, it is not currently known how to fix this. I suggest regenerating the dataset again if this error occurs.

@@ -110,11 +110,12 @@ def convert_float_to_pcm(float_audio):
     assert(float_audio.dtype == np.float32 or float_audio.dtype == np.float64)
     return (float_audio * 32767).astype(np.int16)
 
-def write_wav_skip_existing(path, y, sr, norm=False):
+def write_wav_skip_existing(path, y, sr):
     if not os.path.exists(path):
         soundfile.write(path, y, sr, "PCM_16")
     else:
         print("WARNING: Tried writing audio to " + path + ", but audio file exists already. Skipping file!")
+    return Sample.from_array(path, y, sr)
 
 def getMUSDB(database_path):
     mus = musdb.DB(root_dir=database_path, is_wav=False)
@@ -126,42 +127,37 @@ def getMUSDB(database_path):
         samples = list()
 
         for track in tracks:
+            rate = track.rate
             # Get mix and instruments
             # Bass
             bass_path = track.path[:-4] + "_bass.wav"
-            bass_audio = track.sources["bass"].audio
-            write_wav_skip_existing(bass_path, bass_audio, track.rate)
-            bass = Sample(bass_path, track.rate, track.audio.shape[1], track.duration)
+            bass_audio = track.targets["bass"].audio
+            bass = write_wav_skip_existing(bass_path, bass_audio, rate)
 
             # Drums
             drums_path = track.path[:-4] + "_drums.wav"
-            drums_audio = track.sources["drums"].audio
-            write_wav_skip_existing(drums_path, drums_audio, track.rate)
-            drums = Sample(drums_path, track.rate, track.audio.shape[1], track.duration)
+            drums_audio = track.targets["drums"].audio
+            drums = write_wav_skip_existing(drums_path, drums_audio, rate)
 
             # Other
             other_path = track.path[:-4] + "_other.wav"
-            other_audio = track.sources["other"].audio
-            write_wav_skip_existing(other_path, other_audio, track.rate)
-            other = Sample(other_path, track.rate, track.audio.shape[1], track.duration)
+            other_audio = track.targets["other"].audio
+            other = write_wav_skip_existing(other_path, other_audio, rate)
 
             # Vocals
             vocal_path = track.path[:-4] + "_vocals.wav"
-            vocal_audio = track.sources["vocals"].audio
-            write_wav_skip_existing(vocal_path, vocal_audio, track.rate)
-            vocal = Sample(vocal_path, track.rate, track.audio.shape[1], track.duration)
+            vocal_audio = track.targets["vocals"].audio
+            vocal = write_wav_skip_existing(vocal_path, vocal_audio, rate)
 
             # Add other instruments to form accompaniment
-            acc_audio = track.sources["drums"].audio + track.sources["bass"].audio + track.sources["other"].audio
+            acc_audio = drums_audio + bass_audio + other_audio
             acc_path = track.path[:-4] + "_accompaniment.wav"
-            write_wav_skip_existing(acc_path, acc_audio, track.rate)
-            acc = Sample(acc_path, track.rate, track.audio.shape[1], track.duration)
+            acc = write_wav_skip_existing(acc_path, acc_audio, rate)
 
             # Create mixture
             mix_path = track.path[:-4] + "_mix.wav"
             mix_audio = track.audio
-            write_wav_skip_existing(mix_path, mix_audio, track.rate)
-            mix = Sample(mix_path, track.rate, track.audio.shape[1], track.duration)
+            mix = write_wav_skip_existing(mix_path, mix_audio, rate)
 
             diff_signal = np.abs(mix_audio - bass_audio - drums_audio - other_audio - vocal_audio)
             print("Maximum absolute deviation from source additivity constraint: " + str(np.max(diff_signal)))# Check if acc+vocals=mix

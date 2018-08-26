@@ -80,7 +80,6 @@ class MultistreamCache():
             if num_replacements_current == self.cache_size:  # entire cache replaced? Your IO is super fast!
                 break
 
-            #print('Loading new item into cache from data list starting with ' + self.worker_options["file_list"][0])
             self.update_next_cache_item(self.communication_queue.get())
             num_replacements_current += 1
 

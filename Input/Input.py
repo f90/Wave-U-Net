@@ -10,62 +10,6 @@ from soundfile import SoundFile
 
 import Metadata
 
-
-def createSynthAudioBatch(batch_size, num_frames):
-    '''
-    Create three batches of audio examples [batch_size, freq_bins, time_frames, 1] and return them as a list
-    [music, accompaniment, voice]
-    :param batch_size: Number of examples in each batch
-    :param num_frames: Number of timeframes in each sample
-    :return: List of length three, each entry a numpy array of shape [batch_size, freq_bins, time_frames, 1]
-    '''
-    mixes, accs, voices = list(), list(), list()
-    for i in range(batch_size):
-        mix, acc, voice = createSynthAudio(0.5)
-        mixes.append(mix[:,1:num_frames+1])
-        accs.append(acc[:,1:num_frames+1])
-        voices.append(voice[:,1:num_frames+1])
-    mixes = np.array(mixes)
-    accs = np.array(accs)
-    voices = np.array(voices)
-
-    return [mixes[:,:,:,np.newaxis], accs[:,:,:,np.newaxis], voices[:,:,:,np.newaxis]]
-
-def createSynthAudio(signal_length, sample_rate=22050):
-    '''
-    Create the magnitude spectrograms for synthetic mixture, accompaniment, and voice sample. Voice is active with
-    a 50% chance and is a single sinusoid. Accompaniment are four harmonic sinusoids and added to the voice to yield the mixture.
-    :param signal_length: Signal length of the audio to be used in seconds
-    :param sample_rate: Sampling rate of the audio signal
-    :return: 
-    '''
-    x = np.linspace(0.0, signal_length, int(signal_length * float(sample_rate)))
-
-    # Create voice
-    voice_active = (np.random.randint(0, 2) == 1)
-    if voice_active: # 50/50 chance between silence and sinusoid
-        voice_freq = np.random.uniform(80.0, 220.0)
-        voice_phase = np.random.uniform(-np.pi,np.pi)
-        voice = 0.1 * np.sin(2 * np.pi * voice_freq * x + voice_phase)
-    else:
-        voice = np.zeros(int(signal_length * float(sample_rate)),dtype=np.float32)
-
-    # Create accompaniment
-    if voice_active and voice_freq > 150.0: # High frequency: Overlapping acc and voice F0
-        acc_freq = voice_freq
-    else:
-        acc_freq = np.random.uniform(40.0, 300.0) # Low frequency: Random acc F0 (this introduces acc-voice correlations)
-    acc_phase = np.random.uniform(-np.pi,np.pi)
-    acc = np.zeros(int(signal_length * float(sample_rate)),dtype=np.float32)
-    for harmonic in range(1,6):
-        acc += 0.04 * np.sin(2 * np.pi * acc_freq * harmonic * x + acc_phase)
-
-    mix = voice + acc
-    mix_mag, _ = audioFileToSpectrogram(mix)
-    acc_mag, _ = audioFileToSpectrogram(acc)
-    voice_mag, _ = audioFileToSpectrogram(voice)
-    return mix_mag[:-1,:], acc_mag[:-1,:], voice_mag[:-1,:]
-
 def get_multitrack_placeholders(shape, num_sources, input_shape=None, name=""):
     '''
     Creates Tensorflow placeholders for mixture, accompaniment, and voice.

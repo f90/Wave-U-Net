@@ -2,16 +2,6 @@ import tensorflow as tf
 import numpy as np
 import librosa
 
-# Slice up matrices into squares so the neural net gets a consistent size for training (doesnd't matter for inference)
-def chop(matrix, scale):
-    slices = []
-    for time in range(0, matrix.shape[1] // scale):
-        for freq in range(0, matrix.shape[0] // scale):
-            s = matrix[freq * scale : (freq + 1) * scale,
-                       time * scale : (time + 1) * scale]
-            slices.append(s)
-    return slices
-
 def getTrainableVariables(tag=""):
     return [v for v in tf.trainable_variables() if tag in v.name]
 
@@ -30,23 +20,13 @@ def crop_and_concat(x1,x2, match_feature_dim=True):
     x1 = crop(x1,x2.get_shape().as_list(), match_feature_dim)
     return tf.concat([x1, x2], axis=2)
 
-def sdr_loss(reference_signals, estimates):
-    loss = 0
-    for i in range(len(reference_signals)):
-        energy = tf.reduce_sum(tf.square(estimates[i]), axis=[1, 2])
-        correlation = tf.square(tf.reduce_sum(tf.multiply(estimates[i], reference_signals[i]), axis=[1, 2])) #TODO problem: silence signals cause this to be uncomputable since we divide by zero
-        sdr = tf.truediv(energy, correlation)
-        loss += tf.reduce_mean(sdr)
-    return loss
-
-
 def pad_freqs(tensor, target_shape):
     '''
     Pads the frequency axis of a 4D tensor of shape [batch_size, freqs, timeframes, channels] or 2D tensor [freqs, timeframes] with zeros
     so that it reaches the target shape. If the number of frequencies to pad is uneven, the rows are appended at the end. 
     :param tensor: Input tensor to pad with zeros along the frequency axis
     :param target_shape: Shape of tensor after zero-padding
-    :return: 
+    :return: Padded tensor
     '''
     target_freqs = (target_shape[1] if len(target_shape) == 4 else target_shape[0]) #TODO
     if isinstance(tensor, tf.Tensor):
@@ -116,56 +96,6 @@ def learned_interpolation_layer(input, padding, level):
 
 def LeakyReLU(x, alpha=0.2):
     return tf.maximum(alpha*x, x)
-
-def time_to_batch(value, dilation, name=None):
-    with tf.name_scope('time_to_batch'):
-        shape = value.get_shape().as_list()
-        pad_elements = dilation - 1 - (shape[1] + dilation - 1) % dilation
-        padded = tf.pad(value, [[0, 0], [0, pad_elements], [0, 0]])
-        reshaped = tf.reshape(padded, [-1, dilation, shape[2]])
-        transposed = tf.transpose(reshaped, perm=[1, 0, 2])
-        return tf.reshape(transposed, [shape[0] * dilation, -1, shape[2]])
-
-
-def batch_to_time(value, dilation, name=None):
-    with tf.name_scope('batch_to_time'):
-        shape = value.get_shape().as_list()
-        prepared = tf.reshape(value, [dilation, -1, shape[2]])
-        transposed = tf.transpose(prepared, perm=[1, 0, 2])
-        return tf.reshape(transposed,
-                          [shape[0] // dilation, -1, shape[2]])
-
-
-def causal_conv(value, filter_, dilation, padding, name='causal_conv'):
-    with tf.name_scope(name):
-        filter_width = filter_.get_shape().as_list()[0]
-        if dilation > 1:
-            transformed = time_to_batch(value, dilation)
-            conv = tf.nn.conv1d(transformed, filter_, stride=1,
-                                padding=padding)
-            restored = batch_to_time(conv, dilation)
-        else:
-            restored = tf.nn.conv1d(value, filter_, stride=1, padding=padding)
-
-        # Remove excess elements at the end.
-        out_width = value.get_shape().as_list()[1] - (filter_width - 1) * dilation
-        result = tf.slice(restored,
-                         [0, 0, 0],
-                          [-1, out_width, -1])
-        return result
-
-
-def dilated_conv(value, filter_, dilation, name='dilated_conv'):
-    with tf.name_scope(name):
-        if dilation > 1:
-            transformed = time_to_batch(value, dilation)
-            conv = tf.nn.conv1d(transformed, filter_, stride=1,
-                                padding='SAME') #TODO same or valid padding here? was original valid padding
-            restored = batch_to_time(conv, dilation)
-        else:
-            restored = tf.nn.conv1d(value, filter_, stride=1, padding='SAME') #TODO
-        return restored
-
 
 def load(path, sr=22050, mono=True, offset=0.0, duration=None, dtype=np.float32, res_type='kaiser_best'):
     # ALWAYS output (n_frames, n_channels) audio

@@ -1,4 +1,5 @@
 from sacred import Experiment
+from Config import config_ingredient
 import tensorflow as tf
 import numpy as np
 import os
@@ -16,154 +17,10 @@ import Evaluate
 import functools
 from tensorflow.contrib.signal.python.ops import window_ops
 
-ex = Experiment('Waveunet')
+ex = Experiment('Waveunet Training', ingredients=[config_ingredient])
 
-@ex.config
-def cfg():
-    # Base configuration
-    model_config = {"musdb_path" : "/home/daniel/Datasets/MUSDB18", # SET MUSDB PATH HERE, AND SET CCMIXTER PATH IN CCMixter.xml
-                    "estimates_path" : "/mnt/windaten/Source_Estimates", # SET THIS PATH TO WHERE YOU WANT SOURCE ESTIMATES PRODUCED BY THE TRAINED MODEL TO BE SAVED. Folder itself must exist!
-
-                    "model_base_dir" : "checkpoints", # Base folder for model checkpoints
-                    "log_dir" : "logs", # Base folder for logs files
-                    "batch_size" : 16, # Batch size
-                    "init_sup_sep_lr" : 1e-4, # Supervised separator learning rate
-                    "epoch_it" : 2000, # Number of supervised separator steps per epoch
-                    "num_disc": 5,  # Number of discriminator iterations per separator update
-                    'cache_size' : 16, # Number of audio excerpts that are cached to build batches from
-                    'num_workers' : 6, # Number of processes reading audio and filling up the cache
-                    "duration" : 2, # Duration in seconds of the audio excerpts in the cache. Has to be at least the output length of the network!
-                    'min_replacement_rate' : 16,  # roughly: how many cache entries to replace at least per batch on average. Can be fractional
-                    'num_layers' : 12, # How many U-Net layers
-                    'filter_size' : 15, # For Wave-U-Net: Filter size of conv in downsampling block
-                    'merge_filter_size' : 5, # For Wave-U-Net: Filter size of conv in upsampling block
-                    'num_initial_filters' : 24, # Number of filters for convolution in first layer of network
-                    "num_frames": 16384, # DESIRED number of time frames in the output waveform per samples (could be changed when using valid padding)
-                    'expected_sr': 22050,  # Downsample all audio input to this sampling rate
-                    'mono_downmix': True,  # Whether to downsample the audio input
-                    'output_type' : 'direct', # Type of output layer, either "direct" or "difference". Direct output: Each source is result of tanh activation and independent. DIfference: Last source output is equal to mixture input - sum(all other sources)
-                    'context' : False, # Type of padding for convolutions in separator. If False, feature maps double or half in dimensions after each convolution, and convolutions are padded with zeros ("same" padding). If True, convolution is only performed on the available mixture input, thus the output is smaller than the input
-                    'network' : 'unet', # Type of network architecture, either unet (our model) or unet_spectrogram (Jansson et al 2017 model)
-                    'upsampling' : 'linear', # Type of technique used for upsampling the feature maps in a unet architecture, either 'linear' interpolation or 'learned' filling in of extra samples
-                    'task' : 'voice', # Type of separation task. 'voice' : Separate music into voice and accompaniment. 'multi_instrument': Separate music into guitar, bass, vocals, drums and other (Sisec)
-                    'augmentation' : True, # Random attenuation of source signals to improve generalisation performance (data augmentation)
-                    'raw_audio_loss' : True # Only active for unet_spectrogram network. True: L2 loss on audio. False: L1 loss on spectrogram magnitudes for training and validation and test loss
-                    }
-    seed=1337
-    experiment_id = np.random.randint(0,1000000)
-
-    model_config["num_sources"] = 4 if model_config["task"] == "multi_instrument" else 2
-    model_config["num_channels"] = 1 if model_config["mono_downmix"] else 2
-
-@ex.named_config
-def baseline():
-    print("Training baseline model")
-
-@ex.named_config
-def baseline_diff():
-    print("Training baseline model with difference output")
-    model_config = {
-        "output_type" : "difference"
-    }
-
-@ex.named_config
-def baseline_context():
-    print("Training baseline model with difference output and input context (valid convolutions)")
-    model_config = {
-        "output_type" : "difference",
-        "context" : True
-    }
-
-@ex.named_config
-def baseline_stereo():
-    print("Training baseline model with difference output and input context (valid convolutions)")
-    model_config = {
-        "output_type" : "difference",
-        "context" : True,
-        "mono_downmix" : False
-    }
-
-@ex.named_config
-def full():
-    print("Training full singing voice separation model, with difference output and input context (valid convolutions) and stereo input/output, and learned upsampling layer")
-    model_config = {
-        "output_type" : "difference",
-        "context" : True,
-        "upsampling": "learned",
-        "mono_downmix" : False
-    }
-
-@ex.named_config
-def baseline_context_smallfilter_deep():
-    model_config = {
-        "output_type": "difference",
-        "context": True,
-        "num_layers" : 14,
-        "duration" : 7,
-        "filter_size" : 5,
-        "merge_filter_size" : 1
-    }
-
-@ex.named_config
-def full_multi_instrument():
-    print("Training multi-instrument separation with best model")
-    model_config = {
-        "output_type": "difference",
-        "context": True,
-        "upsampling": "linear",
-        "mono_downmix": False,
-        "task" : "multi_instrument"
-    }
-
-@ex.named_config
-def baseline_comparison():
-    model_config = {
-        "batch_size": 4, # Less output since model is so big. Doesn't matter since the model's output is not dependent on its output or input size (only convolutions)
-        "cache_size": 4,
-        "min_replacement_rate" : 4,
-
-        "output_type": "difference",
-        "context": True,
-        "num_frames" : 768*127 + 1024,
-        "duration" : 13,
-        "expected_sr" : 8192,
-        "num_initial_filters" : 34
-    }
-
-@ex.named_config
-def unet_spectrogram():
-    model_config = {
-        "batch_size": 4, # Less output since model is so big.
-        "cache_size": 4,
-        "min_replacement_rate" : 4,
-
-        "network" : "unet_spectrogram",
-        "num_layers" : 6,
-        "expected_sr" : 8192,
-        "num_frames" : 768 * 127 + 1024, # hop_size * (time_frames_of_spectrogram_input - 1) + fft_length
-        "duration" : 13,
-        "num_initial_filters" : 16
-    }
-
-@ex.named_config
-def unet_spectrogram_l1():
-    model_config = {
-        "batch_size": 4, # Less output since model is so big.
-        "cache_size": 4,
-        "min_replacement_rate" : 4,
-
-        "network" : "unet_spectrogram",
-        "num_layers" : 6,
-        "expected_sr" : 8192,
-        "num_frames" : 768 * 127 + 1024, # hop_size * (time_frames_of_spectrogram_input - 1) + fft_length
-        "duration" : 13,
-        "num_initial_filters" : 16,
-        "loss" : "magnitudes"
-    }
-
-
-@ex.capture
-def train(model_config, experiment_id, sup_dataset, unsup_dataset=None, load_model=None):
+@config_ingredient.capture
+def train(model_config, experiment_id, sup_dataset, load_model=None):
     # Determine input and output shapes
     disc_input_shape = [model_config["batch_size"], model_config["num_frames"], 0]  # Shape of input
     if model_config["network"] == "unet":
@@ -226,7 +83,6 @@ def train(model_config, experiment_id, sup_dataset, unsup_dataset=None, load_mod
     # TRAINING CONTROL VARIABLES
     global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False, dtype=tf.int64)
     increment_global_step = tf.assign(global_step, global_step + 1)
-    sep_lr = tf.get_variable('unsup_sep_lr', [],initializer=tf.constant_initializer(model_config["init_sup_sep_lr"], dtype=tf.float32), trainable=False)
 
     # Set up optimizers
     separator_vars = Utils.getTrainableVariables("separator")
@@ -236,9 +92,9 @@ def train(model_config, experiment_id, sup_dataset, unsup_dataset=None, load_mod
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
         with tf.variable_scope("separator_solver"):
-            separator_solver = tf.train.AdamOptimizer(learning_rate=sep_lr).minimize(separator_loss, var_list=separator_vars)
+            separator_solver = tf.train.AdamOptimizer(learning_rate=model_config["init_sup_sep_lr"]).minimize(separator_loss, var_list=separator_vars)
 
-    # SUMMARAIES
+    # SUMMARIES
     tf.summary.scalar("sep_loss", separator_loss, collections=["sup"])
     sup_summaries = tf.summary.merge_all(key='sup')
 
@@ -292,7 +148,7 @@ def train(model_config, experiment_id, sup_dataset, unsup_dataset=None, load_mod
 
     return save_path
 
-@ex.capture
+@config_ingredient.capture
 def optimise(model_config, experiment_id, dataset):
     epoch = 0
     best_loss = 10000
@@ -306,10 +162,10 @@ def optimise(model_config, experiment_id, dataset):
             model_config["cache_size"] *= 2
             model_config["min_replacement_rate"] *= 2
             model_config["init_sup_sep_lr"] = 1e-5
-        while worse_epochs < 20: # Early stopping on validation set after a few epochs
+        while worse_epochs < model_config["worse_epochs"]: # Early stopping on validation set after a few epochs
             print("EPOCH: " + str(epoch))
-            model_path = train(sup_dataset=dataset["train_sup"], load_model=model_path)
-            curr_loss = Test.test(model_config, model_folder=str(experiment_id), audio_list=dataset["train_sup"], load_model=model_path)
+            model_path = train(sup_dataset=dataset["train"], load_model=model_path)
+            curr_loss = Test.test(model_config, model_folder=str(experiment_id), audio_list=dataset["valid"], load_model=model_path)
             epoch += 1
             if curr_loss < best_loss:
                 worse_epochs = 0
@@ -324,7 +180,8 @@ def optimise(model_config, experiment_id, dataset):
     return best_model_path, test_loss
 
 @ex.automain
-def dsd_100_experiment(model_config):
+def run(cfg):
+    model_config = cfg["model_config"]
     print("SCRIPT START")
     # Create subfolders if they do not exist to save results
     for dir in [model_config["model_base_dir"], model_config["log_dir"]]:
@@ -332,44 +189,77 @@ def dsd_100_experiment(model_config):
             os.makedirs(dir)
 
     # Set up data input
-    if os.path.exists('dataset.pkl'):
-        with open('dataset.pkl', 'r') as file:
+    pickle_file = 'dataset_multi.pkl' if model_config["task"] == "multi_instrument" else "dataset_voice.pkl"
+    if os.path.exists(pickle_file): # Check whether our dataset file is already there, then load it
+        with open(pickle_file, 'r') as file:
             dataset = pickle.load(file)
         print("Loaded dataset from pickle!")
-    else:
-        dsd_train, dsd_test = Datasets.getMUSDB(model_config["musdb_path"])
-        ccm = Datasets.getCCMixter("CCMixter.xml")
+    else: # Otherwise create the dataset pickle
+        # Check if MUSDB was prepared before
+        if os.path.exists("dataset_musdb_allstems.pkl"):
+            with open("dataset_musdb_allstems.pkl", 'r') as file:
+                dataset = pickle.load(file)
+            print("Loaded MUSDB base dataset from pickle!")
+        else: # We have to prepare the MUSDB dataset
+            print("Preparing MUSDB dataset! This could take a while...")
+            dsd_train, dsd_test = Datasets.getMUSDB(model_config["musdb_path"]) # List of (mix, acc, bass, drums, other, vocal) tuples
 
-        # Pick 25 random songs for validation from MUSDB train set (this is always the same selection each time since we fix the random seed!)
-        val_idx = np.random.choice(len(dsd_train), size=25, replace=False)
-        train_idx = [i for i in range(len(dsd_train)) if i not in val_idx]
-        print("Validation with MUSDB training songs no. " + str(train_idx))
+            # Pick 25 random songs for validation from MUSDB train set (this is always the same selection each time since we fix the random seed!)
+            val_idx = np.random.choice(len(dsd_train), size=25, replace=False)
+            train_idx = [i for i in range(len(dsd_train)) if i not in val_idx]
+            print("Validation with MUSDB training songs no. " + str(train_idx))
 
-        # Draw randomly from datasets
-        dataset = dict()
-        dataset["train_sup"] = [dsd_train[i] for i in train_idx] + ccm
-        dataset["train_unsup"] = list() #[dsd_train[0][25:], dsd_train[1][25:], dsd_train[2][25:]] #[fma, list(), looperman]
-        dataset["valid"] = [dsd_train[i] for i in val_idx]
-        dataset["test"] = dsd_test
+            # Draw randomly from datasets
+            dataset = dict()
+            dataset["train"] = [dsd_train[i] for i in train_idx]
+            dataset["valid"] = [dsd_train[i] for i in val_idx]
+            dataset["test"] = dsd_test
 
-        with open('dataset.pkl', 'wb') as file:
-            pickle.dump(dataset,file)
-        print("Created dataset structure")
+            # Write full MUSDB dataset
+            with open("dataset_musdb_allstems.pkl", 'wb') as file:
+                pickle.dump(dataset, file)
+            print("Wrote MUSDB base dataset!")
 
-    # Setup dataset depending on task. Dataset contains sources in order: (mix, acc, bass, drums, other, vocal)
-    if model_config["task"] == "voice":
-        for i in range(75):
-            dataset["train_sup"][i] = (dataset["train_sup"][i][0], dataset["train_sup"][i][1], dataset["train_sup"][i][5])
-        for subset in ["valid", "test"]:
-            for i in range(len(dataset[subset])):
-                dataset[subset][i] = (dataset[subset][i][0], dataset[subset][i][1], dataset[subset][i][5])
-    else: # Multitask - Remove CCMixter from training, and acc source
-        dataset["train_sup"] = dataset["train_sup"][:75]
-        for subset in ["train_sup", "valid", "test"]:
-            for i in range(len(dataset[subset])):
-                dataset[subset][i] = (dataset[subset][i][0], dataset[subset][i][2], dataset[subset][i][3], dataset[subset][i][4], dataset[subset][i][5])
+        # MUSDB base dataset loaded now, now create task-specific dataset based on that
+        if model_config["task"] == "multi_instrument":
+            # Write multi instrument dataset
+            # Remove acc stem from MUSDB
+            for subset in ["train", "valid", "test"]:
+                for i in range(len(dataset[subset])):
+                    dataset[subset][i] = (dataset[subset][i][0], dataset[subset][i][2], dataset[subset][i][3], dataset[subset][i][4], dataset[subset][i][5])
+            with open("dataset_multi.pkl", 'wb') as file:
+                pickle.dump(dataset,file)
+            print("Wrote multi-instrument dataset!")
+        else:
+            assert(model_config["task"] == "voice")
 
-    # Optimize in a +supervised fashion until validation loss worsens
+            # Remove other instruments from base MUSDB
+            for subset in ["train", "valid", "test"]:
+                for i in range(len(dataset[subset])):
+                    dataset[subset][i] = (dataset[subset][i][0], dataset[subset][i][1], dataset[subset][i][5])
+
+            # Prepare CCMixter
+            print("Preparing CCMixter dataset!")
+            ccm = Datasets.getCCMixter("CCMixter.xml")
+            dataset["train"].extend(ccm)
+
+            # Save voice dataset
+            with open("dataset_voice.pkl", 'wb') as file:
+                pickle.dump(dataset, file)
+            print("Wrote voice separation dataset!")
+
+        print("LOADED DATASET")
+
+    # The dataset structure is a dictionary with "train", "valid", "test" keys, whose entries are lists, where each element represents a song.
+    # Each song is represented as a tuple of (mix, acc, vocal) or (mix, bass, drums, other, vocal) depending on the task.
+    # Each stem is a Sample object (see Sample class). Custom datasets can be fed by converting it to this data structure, then calling optimise
+
+    # Optimize in a supervised fashion until validation loss worsens
     sup_model_path, sup_loss = optimise(dataset=dataset)
     print("Supervised training finished! Saved model at " + sup_model_path + ". Performance: " + str(sup_loss))
-    Evaluate.produce_source_estimates(model_config, sup_model_path, model_config["musdb_path"], model_config["estimates_path"], "train")
+
+    # Evaluate trained model on MUSDB
+    Evaluate.produce_musdb_source_estimates(model_config, sup_model_path, model_config["musdb_path"], model_config["estimates_path"])
+
+    # Optional: Test on any desired input song, using the model configuration and the checkpoint file!
+    #Evaluate.produce_source_estimates(model_config, sup_model_path, os.path.join("audio_examples", "Cristina Vane - So Easy", "mix.mp3"), output_path="/home/daniel")
