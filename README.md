@@ -83,10 +83,10 @@ Since the paper investigates many model variants of the Wave-U-Net and also trai
 
 To output source predictions with a trained model, one can execute the Predict.py file, for example:
 
-`` python Predict.py with cfg.baseline_stereo model_path="checkpoints/120878/120878-20001" input_path="/mnt/medien/Daniel/Music/Dark Passion Play/Nightwish - Bye Bye Beautiful.mp3" output_path='/home/daniel'
+`` python Predict.py with cfg.baseline_stereo model_path="checkpoints/120878/120878-20001" input_path="/mnt/medien/Daniel/Music/Dark Passion Play/Nightwish - Bye Bye Beautiful.mp3" output_path="/home/daniel" ``
 
 The ``model_path`` should point to the Tensorflow checkpoint name that contains the model and should match with the given model configuration (in this case baseline_stereo).
-The ``input_path`` needs to be set to the path to the input mixture file. Source signals are then saved in the same folder as the input file, except if the optional ``output_path`` specifies a custom output folder.
+The ``input_path`` needs to be set to the path to your input mixture file, a default song mixture is selected otherwise. After executing, source signals are saved in the same folder as the input file, except if the optional ``output_path`` specifies a custom output folder.
 
 ## Known issues
 
