@@ -8,6 +8,7 @@ import skimage.io as io
 import tensorflow as tf
 from soundfile import SoundFile
 
+import Utils
 import Metadata
 
 def get_multitrack_placeholders(shape, num_sources, input_shape=None, name=""):
@@ -95,7 +96,7 @@ def readWave(audio_path, start_frame, end_frame, mono=True, sample_rate=None, cl
     if sample_rate is not None and sample_rate != audio_sr:
         res_length = int(np.ceil(float(audio.shape[0]) * float(sample_rate) / float(audio_sr)))
         audio = np.pad(audio, [(1, 1), (0,0)], mode="reflect")  # Pad audio first
-        audio = librosa.resample(audio.T, audio_sr, sample_rate, res_type="kaiser_fast").T
+        audio = Utils.resample(audio, audio_sr, sample_rate)
         skip = (audio.shape[0] - res_length) // 2
         audio = audio[skip:skip+res_length,:]
 
@@ -238,7 +239,7 @@ def readAudio(audio_path, offset=0.0, duration=None, mono=True, sample_rate=None
 
     # Resample if needed
     if sample_rate is not None and sample_rate != audio_sr:
-        audio = librosa.resample(audio.T, audio_sr, sample_rate, res_type="kaiser_fast").T
+        audio = Utils.resample(audio, audio_sr, sample_rate)
 
     # Clip to [-1,1] if desired
     if clip:

@@ -1,6 +1,15 @@
 import tensorflow as tf
 import numpy as np
 import librosa
+from scipy.signal import resample_poly
+from fractions import gcd
+
+def resample(audio, orig_sr, new_sr):
+    factor = gcd(orig_sr, new_sr)
+    down = orig_sr / factor
+    up = new_sr / factor
+    audio = resample_poly(audio, up, down)
+    return audio
 
 def getTrainableVariables(tag=""):
     return [v for v in tf.trainable_variables() if tag in v.name]

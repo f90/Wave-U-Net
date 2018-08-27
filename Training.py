@@ -59,6 +59,7 @@ def train(model_config, experiment_id, sup_dataset, load_model=None):
 
     # Placeholders and input normalisation
     mix_context, sources = Input.get_multitrack_placeholders(sep_output_shape, model_config["num_sources"], sep_input_shape, "sup")
+    #tf.summary.audio("mix", mix_context, 22050, collections=["sup"])
     mix = Utils.crop(mix_context, sep_output_shape)
 
     print("Training...")
