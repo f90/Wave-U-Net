@@ -144,7 +144,7 @@ def readAudio(audio_path, offset=0.0, duration=None, mono=True, sample_rate=None
             max_start_pos = audio_duration+2*padding_duration-duration
             if (max_start_pos <= 0.0):  # If audio file is longer than duration of desired section, take all of it, will be padded later
                 print("WARNING: Audio file " + audio_path + " has length " + str(audio_duration) + " but is expected to be at least " + str(duration))
-                return librosa.load(audio_path, sample_rate, mono, res_type='kaiser_fast')  # Return whole audio file
+                return Utils.load(audio_path, sample_rate, mono)  # Return whole audio file
             start_pos = np.random.uniform(0.0,max_start_pos) # Otherwise randomly determine audio section, taking padding on both sides into account
             offset = max(start_pos - padding_duration, 0.0) # Read from this position in audio file
             pad_front_duration = max(padding_duration - start_pos, 0.0)
@@ -206,7 +206,7 @@ def readAudio(audio_path, offset=0.0, duration=None, mono=True, sample_rate=None
             if (max_start_pos <= 0):  # If audio file is longer than duration of desired section, take all of it, will be padded later
                 print("WARNING: Audio file " + audio_path + " has frames  " + str(inf.frames) + " but is expected to be at least " + str(num_frames))
                 raise Exception("Could not read minimum required amount of audio data")
-                #return librosa.load(audio_path, sample_rate, mono, res_type='kaiser_fast')  # Return whole audio file
+                #return Utils.load(audio_path, sample_rate, mono)  # Return whole audio file
             start_pos = np.random.randint(0, max_start_pos)  # Otherwise randomly determine audio section, taking padding on both sides into account
 
             # Translate source position into mixture input positions (take into account padding)
@@ -309,7 +309,7 @@ def add_audio(audio_list, path_postfix):
     save_path = audio_list[0] + "_" + path_postfix + ".wav"
     if not os.path.exists(save_path):
         for idx, instrument in enumerate(audio_list):
-            instrument_audio, sr = librosa.load(instrument, sr=None)
+            instrument_audio, sr = Utils.load(instrument, sr=None)
             if idx == 0:
                 audio = instrument_audio
             else:
@@ -341,9 +341,9 @@ def getRemainingSpectrum(mix_audio, instrument_audio_list, expected_sr, fftWindo
         except Exception as e:
             print("Could not load " + mix_audio)
 
-    audio, sampleRate = librosa.load(mix_audio, sr=expected_sr)
+    audio, sampleRate = Utils.load(mix_audio, sr=expected_sr)
     for instrument in instrument_audio_list:
-        instrument_audio, _ = librosa.load(instrument, sr=expected_sr)
+        instrument_audio, _ = Utils.load(instrument, sr=expected_sr)
         audio -= instrument_audio
     audio = np.maximum(np.minimum(audio, 1.0), -1.0)
     mag, ph = audioFileToSpectrogram(audio, fftWindowSize=fftWindowSize, hopSize=hopSize, buffer=False)

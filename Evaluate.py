@@ -1,4 +1,3 @@
-import pickle
 import numpy as np
 import tensorflow as tf
 import librosa
@@ -75,7 +74,7 @@ def predict(track, model_config, load_model, results_dir=None):
     separator_preds = predict_track(model_config, sess, mix_audio, orig_sr, sep_input_shape, sep_output_shape, separator_sources, mix_context)
 
     # Upsample predicted source audio and convert to stereo
-    pred_audio = [librosa.resample(pred.T, model_config["expected_sr"], orig_sr).T for pred in separator_preds]
+    pred_audio = [Utils.resample(pred, model_config["expected_sr"], orig_sr) for pred in separator_preds]
 
     if model_config["mono_downmix"] and mix_channels > 1: # Convert to multichannel if mixture input was multichannel by duplicating mono estimate
         pred_audio = [np.tile(pred, [1, mix_channels]) for pred in pred_audio]
@@ -128,7 +127,7 @@ def predict_track(model_config, sess, mix_audio, mix_sr, sep_input_shape, sep_ou
     else:
         if mix_audio.shape[1] == 1:# Duplicate channels if input is mono but model is stereo
             mix_audio = np.tile(mix_audio, [1, 2])
-    mix_audio = librosa.resample(mix_audio.T, mix_sr, model_config["expected_sr"], res_type="kaiser_fast").T
+    mix_audio = Utils.resample(mix_audio, mix_sr, model_config["expected_sr"])
 
     # Preallocate source predictions (same shape as input mixture)
     source_time_frames = mix_audio.shape[0]
@@ -251,7 +250,7 @@ def draw_violin_sdr(json_folder):
     fig.savefig("sdr_histogram.pdf", bbox_inches='tight')
 
 def draw_spectrogram(example_wav="musb_005_angela thomas wade_audio_model_without_context_cut_28234samples_61002samples_93770samples_126538.wav"):
-    y, sr = librosa.load(example_wav, sr=None)
+    y, sr = Utils.load(example_wav, sr=None)
     spec = np.abs(librosa.stft(y, 512, 256, 512))
     norm_spec = librosa.power_to_db(spec**2)
     black_time_frames = np.array([28234, 61002, 93770, 126538]) / 256.0

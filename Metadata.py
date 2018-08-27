@@ -2,6 +2,7 @@ import librosa
 import os, re, subprocess
 from soundfile import SoundFile
 import scikits.audiolab
+import Utils
 
 class AudioReadError(EnvironmentError):
     pass
@@ -24,7 +25,7 @@ def seconds_to_min_sec( secs ):
 
 def get_metadata_by_loading(audio_path):
     print("Reading metadata for file " + audio_path + " by loading file completely")
-    audio, sr = librosa.load(audio_path, sr=None, mono=False)
+    audio, sr = Utils.load(audio_path, sr=None, mono=False)
     if sr == None: # Error reading file
         raise AudioReadError("Could not load file" + audio_path)
     if len(audio.shape) == 1:

@@ -81,7 +81,7 @@ def test(model_config, audio_list, model_folder, load_model):
         # Load original sources
         sources_gt = list()
         for s in sample[1:]:
-            s_audio, _ = Utils.load(s.path, sr=model_config["expected_sr"], mono=model_config["mono_downmix"], res_type="kaiser_fast")
+            s_audio, _ = Utils.load(s.path, sr=model_config["expected_sr"], mono=model_config["mono_downmix"])
             sources_gt.append(s_audio)
 
         # Determine mean squared error

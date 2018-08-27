@@ -1,6 +1,7 @@
 import os.path
 
 import Input.Input
+import Utils
 from Sample import Sample
 import csv
 
@@ -31,8 +32,8 @@ def subtract_audio(mix_list, instrument_list):
 
         if os.path.exists(new_audio_path):
             continue
-        mix_audio, mix_sr = librosa.load(mix_list[i], mono=False, sr=None)
-        inst_audio, inst_sr = librosa.load(instrument_list[i], mono=False, sr=None)
+        mix_audio, mix_sr = Utils.load(mix_list[i], mono=False, sr=None)
+        inst_audio, inst_sr = Utils.load(instrument_list[i], mono=False, sr=None)
         assert (mix_sr == inst_sr)
         new_audio = mix_audio - inst_audio
         if not (np.min(new_audio) >= -1.0 and np.max(new_audio) <= 1.0):
@@ -255,7 +256,7 @@ def getIKala(xml_path):
         acc_path = orig_path + "_acc.wav"
         voice_path = orig_path + "_voice.wav"
 
-        mix_audio, mix_sr = librosa.load(mix.path, sr=None, mono=False)
+        mix_audio, mix_sr = Utils.load(mix.path, sr=None, mono=False)
         mix.path = mix_path
         librosa.output.write_wav(mix_path, np.sum(mix_audio, axis=0), mix_sr)
         librosa.output.write_wav(acc_path, mix_audio[0,:], mix_sr)

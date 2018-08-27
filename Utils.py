@@ -106,12 +106,16 @@ def learned_interpolation_layer(input, padding, level):
 def LeakyReLU(x, alpha=0.2):
     return tf.maximum(alpha*x, x)
 
-def load(path, sr=22050, mono=True, offset=0.0, duration=None, dtype=np.float32, res_type='kaiser_best'):
+def load(path, sr=22050, mono=True, offset=0.0, duration=None, dtype=np.float32):
     # ALWAYS output (n_frames, n_channels) audio
-    y, sr = librosa.load(path, sr, mono, offset, duration, dtype, res_type)
+    y, orig_sr = librosa.load(path, None, mono, offset, duration, dtype)
     if len(y.shape) == 1:
         y = np.expand_dims(y, axis=0)
-    return (y.T, sr)
+    y = y.T
+    if sr != None:
+        return resample(y, orig_sr, sr), sr
+    else:
+        return y, orig_sr
 
 def crop(tensor, target_shape, match_feature_dim=True):
     '''

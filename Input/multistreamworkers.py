@@ -1,10 +1,6 @@
 import numpy as np
 import Input
 from Sample import Sample
-from soundfile import SoundFile
-import librosa
-import pickle as pkl
-import os
 
 class MultistreamWorker_GetSpectrogram:
     @staticmethod
@@ -36,7 +32,7 @@ class MultistreamWorker_GetSpectrogram:
                 item_list = list()
                 for sample in item[1:]:
                     print(sample.path)
-                    audio, _ = librosa.load(sample.path, sr=options["expected_sr"], mono=options["mono_downmix"], res_type="kaiser_fast")
+                    audio, _ = Utils.load(sample.path, sr=options["expected_sr"], mono=options["mono_downmix"], res_type="kaiser_fast")
                     if len(audio.shape) == 1:
                         audio = np.expand_dims(audio, axis=0)
                     item_list.append(audio.T)
