@@ -7,8 +7,8 @@ ex = Experiment('Waveunet Prediction', ingredients=[config_ingredient])
 
 @ex.config
 def cfg():
-    model_path = None # TODO add a pretrained model?
-    input_path = os.path.join("audio_examples", "Cristina Vane - So Easy", "mix.mp3")
+    model_path = "checkpoints/baseline_stereo/baseline_stereo-186093" # Load stereo vocal model by default
+    input_path = os.path.join("audio_examples", "The Mountaineering Club - Mallory", "mix.mp3")
     output_path = None
 
 @ex.automain
