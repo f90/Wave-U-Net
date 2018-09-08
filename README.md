@@ -22,8 +22,6 @@ The Wave-U-Net also participated in the [SiSec separation campaign](https://sise
 
 ## Requirements
 
-Git-LFS should be installed before cloning the repository if the pretrained singing voice separation model should be downloaded along with the main code.
-
 GPU strongly recommended to avoid very long training times.
 Python 2.7
 Python package requirements below:
