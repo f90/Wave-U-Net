@@ -261,6 +261,3 @@ def run(cfg):
 
     # Evaluate trained model on MUSDB
     Evaluate.produce_musdb_source_estimates(model_config, sup_model_path, model_config["musdb_path"], model_config["estimates_path"])
-
-    # Optional: Test on any desired input song, using the model configuration and the checkpoint file!
-    #Evaluate.produce_source_estimates(model_config, sup_model_path, os.path.join("audio_examples", "Cristina Vane - So Easy", "mix.mp3"), output_path="/home/daniel")

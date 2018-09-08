@@ -49,7 +49,7 @@ To reproduce the experiments in the paper (and train all the models), you need t
 
 #### MUSDB18
 
-Download the full MUSDB18 dataset from https://sigsep.github.io/datasets/musdb.html and extract it into a folder of your choice. It should have two subfolders: "test" and "train" as well as a README.md file.
+Download the [full MUSDB18 dataset](https://sigsep.github.io/datasets/musdb.html) and extract it into a folder of your choice. It should have two subfolders: "test" and "train" as well as a README.md file.
 
 #### CCMixter (only required for vocal separation experiments)
 
@@ -82,8 +82,16 @@ Since the paper investigates many model variants of the Wave-U-Net and also trai
 
 ## Test trained models on songs!
 
-We include a pretrained version of the stereo vocal separator (Model M4) in this repository so you can separate any of your songs into vocals and accompaniment right away.
-For a quick demo on an example song, one can simply execute
+We provide a pretrained version of the stereo vocal separator (Model M4) so you can separate any of your songs into vocals and accompaniment right away. 
+
+### Downloading our pretrained models
+
+Download our pretrained models [here](https://www.dropbox.com/s/oq0woy3cmf5s8y7/models.zip?dl=1).
+Unzip the archive into the ``checkpoints`` subfolder in this repository, so that you have one subfolder for each model (e.g. ``REPO/checkpoints/baseline_stereo``)
+
+### Run pretrained models
+
+For a quick demo on an example song with our pretrained model, one can simply execute
 
 `` python Predict.py with cfg.baseline_stereo ``
 

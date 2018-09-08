@@ -1,3 +1,0 @@
-*.index filter=lfs diff=lfs merge=lfs -text
-*.meta filter=lfs diff=lfs merge=lfs -text
-*.data* filter=lfs diff=lfs merge=lfs -text
