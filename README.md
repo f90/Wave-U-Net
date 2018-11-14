@@ -80,18 +80,18 @@ Since the paper investigates many model variants of the Wave-U-Net and also trai
 | U7                      | U-Net replication from prior work, audio-based MSE loss | Vocals                               | ``python Training.py with cfg.unet_spectrogram``      |
 | U7a                     | Like U7, but with L1 magnitude loss                     | Vocals                               | ``python Training.py with cfg.unet_spectrogram_l1``   |
 
-## Test trained models on songs!
+# Test trained models on songs!
 
-We provide a pretrained version of the stereo vocal separator (Model M4) so you can separate any of your songs into vocals and accompaniment right away. 
+We provide a pretrained version of the stereo vocal separator (Model M4) and the multi-instrument separator (Model M6) so you can separate any of your songs right away. 
 
-### Downloading our pretrained models
+## Downloading our pretrained models
 
 Download our pretrained models [here](https://www.dropbox.com/s/oq0woy3cmf5s8y7/models.zip?dl=1).
 Unzip the archive into the ``checkpoints`` subfolder in this repository, so that you have one subfolder for each model (e.g. ``REPO/checkpoints/baseline_stereo``)
 
-### Run pretrained models
+## Run pretrained models
 
-For a quick demo on an example song with our pretrained model, one can simply execute
+For a quick demo on an example song with our pretrained vocal separation model, one can simply execute
 
 `` python Predict.py with cfg.baseline_stereo ``
 
@@ -105,10 +105,10 @@ If you want to save the predictions to a custom folder instead of where the inpu
 
 `` python Predict.py with cfg.baseline_stereo input_path="/mnt/medien/Daniel/Music/Dark Passion Play/Nightwish - Bye Bye Beautiful.mp3" output_path="/home/daniel" ``
 
-If you want to use your own trained model, point to the location of the Tensorflow checkpoint file using the ``model_path`` parameter, making sure that the model configuration (here: ``baseline_stereo``) matches with the model saved in the checkpoint:
+If you want to use other pre-trained models we provide or your own ones, point to the location of the Tensorflow checkpoint file using the ``model_path`` parameter, making sure that the model configuration (here: ``full_multi_instrument``) matches with the model saved in the checkpoint. As an example for our pre-packaged multi-instrument model:
 
-`` python Predict.py with cfg.baseline_stereo model_path="checkpoints/baseline_stereo/baseline_stereo-186093" input_path="/mnt/medien/Daniel/Music/Dark Passion Play/Nightwish - Bye Bye Beautiful.mp3" output_path="/home/daniel" ``
+`` python Predict.py with cfg.full_multi_instrument model_path="checkpoints/full_multi_instrument/full_multi_instrument-134067" input_path="/mnt/medien/Daniel/Music/Dark Passion Play/Nightwish - Bye Bye Beautiful.mp3" output_path="/home/daniel" ``
 
-## Known issues
+# Known issues
 
 During the preparation of the MUSDB dataset, conversion to WAV can sometimes halt because of an ffmpeg process freezing that is used within the musdb python package to identify the datasets mp4 audio streams. This seems to be an error occurring upon the subprocess.Popen() used deep within the stempeg library. Due to its random nature, it is not currently known how to fix this. I suggest regenerating the dataset again if this error occurs.
