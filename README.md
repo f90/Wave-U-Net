@@ -23,29 +23,36 @@ The Wave-U-Net also participated in the [SiSec separation campaign](https://sise
 ## Requirements
 
 GPU strongly recommended to avoid very long training times.
-Python 2.7
-Python package requirements below:
+
+The project is based on Python 2.7 and requires [libsndfile](http://mega-nerd.com/libsndfile/) to be installed.
+
+Then, the following Python packages need to be installed:
 
 ```
+numpy==1.15.4
 sacred==0.7.3
 tensorflow-gpu==1.8.0
-librosa==0.6.1
+librosa==0.6.2
 scikit-image==0.13.1
 soundfile==0.10.2
 scikits.audiolab==0.11.0
 lxml==4.2.1
 musdb==0.2.3
 museval==0.2.0
+google==2.0.1
+protobuf==3.4.0
 ```
 
-These required packages are also saved in the file requirements.txt located in this repository, so you can clone the repository and then execute the following in the downloaded repository's path to install all the required packages at once:
+Alternatively to ``tensorflow-gpu`` the CPU version of TF, ``tensorflow`` can be used, if there is no GPU available.
+All the above packages are also saved in the file ``requirements.txt`` located in this repository, so you can clone the repository and then execute the following in the downloaded repository's path to install all the required packages at once:
 
 ``pip install -r requirements.txt``
 
 ### Download datasets
 
-To try our vocal separator model variant on your own songs, skip to the last section, since the datasets are not needed.
-To reproduce the experiments in the paper (and train all the models), you need to download the datasets below. You can of course use your own datasets for separation, but for this you would need to modify the code manually, which will not be discussed here.
+To directly use the pre-trained models we provide for download to separate your own songs, now skip directly to the [last section](#test), since the datasets are not needed in that case.
+
+To reproduce the experiments in the paper (train all the models), you need to download the datasets below. You can of course use your own datasets for training, but for this you would need to modify the code manually, which will not be discussed here.
 
 #### MUSDB18
 
@@ -80,7 +87,7 @@ Since the paper investigates many model variants of the Wave-U-Net and also trai
 | U7                      | U-Net replication from prior work, audio-based MSE loss | Vocals                               | ``python Training.py with cfg.unet_spectrogram``      |
 | U7a                     | Like U7, but with L1 magnitude loss                     | Vocals                               | ``python Training.py with cfg.unet_spectrogram_l1``   |
 
-# Test trained models on songs!
+# <a name="test"></a> Test trained models on songs!
 
 We provide a pretrained version of the stereo vocal separator (Model M4) and the multi-instrument separator (Model M6) so you can separate any of your songs right away. 
 
@@ -109,6 +116,8 @@ If you want to use other pre-trained models we provide or your own ones, point t
 
 `` python Predict.py with cfg.full_multi_instrument model_path="checkpoints/full_multi_instrument/full_multi_instrument-134067" input_path="/mnt/medien/Daniel/Music/Dark Passion Play/Nightwish - Bye Bye Beautiful.mp3" output_path="/home/daniel" ``
 
-# Known issues
+# Known issues / Troubleshooting
+
+MacOS: If matplotlib throws an ImportError, see [this issue](https://github.com/f90/Wave-U-Net/issues/8) for how to fix it.  
 
 During the preparation of the MUSDB dataset, conversion to WAV can sometimes halt because of an ffmpeg process freezing that is used within the musdb python package to identify the datasets mp4 audio streams. This seems to be an error occurring upon the subprocess.Popen() used deep within the stempeg library. Due to its random nature, it is not currently known how to fix this. I suggest regenerating the dataset again if this error occurs.
