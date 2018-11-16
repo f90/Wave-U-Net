@@ -71,7 +71,7 @@ Also set the ``estimates_path`` entry of the same ``model_config`` dictionary to
 
 If you use CCMixter, open the ``CCMixter.xml`` in the main repository folder, and replace the given file path tagged as ``databaseFolderPath`` with your path to the main folder of CCMixter.
 
-## Training/running the experiments
+## Training the models / model overview
 
 Since the paper investigates many model variants of the Wave-U-Net and also trains the [U-Net proposed for vocal separation](https://ismir2017.smcnus.org/wp-content/uploads/2017/10/171_Paper.pdf), which achieved state-of-the-art performance, as a comparison, we give a list of model variants to train and the command needed to start training them:
 
@@ -87,9 +87,19 @@ Since the paper investigates many model variants of the Wave-U-Net and also trai
 | U7                      | U-Net replication from prior work, audio-based MSE loss | Vocals                               | ``python Training.py with cfg.unet_spectrogram``      |
 | U7a                     | Like U7, but with L1 magnitude loss                     | Vocals                               | ``python Training.py with cfg.unet_spectrogram_l1``   |
 
+**NEW:**
+
+We also include the following models not part of the paper (also with pre-trained weights for download!):
+
+| Model name (not in paper)| Description                                             | Separate vocals or multi-instrument? | Command for training                          |
+|-------------------------|---------------------------------------------------------|--------------------------------------|-----------------------------------------------|
+| M5-HighSR               | M5 with 44.1 KHz sampling rate                | Vocals                               | ``python Training.py with cfg.full_44KHz``   |
+
+M5-HighSR is our best vocal separator, reaching a median (mean) vocal/acc SDR of 4.95 (1.01) and 11.16 (12.87), respectively.
+
 # <a name="test"></a> Test trained models on songs!
 
-We provide a pretrained version of the stereo vocal separator (Model M4) and the multi-instrument separator (Model M6) so you can separate any of your songs right away. 
+We provide a pretrained versions of models M4, M6 and M5-HighSR so you can separate any of your songs right away. 
 
 ## Downloading our pretrained models
 
@@ -98,21 +108,21 @@ Unzip the archive into the ``checkpoints`` subfolder in this repository, so that
 
 ## Run pretrained models
 
-For a quick demo on an example song with our pretrained vocal separation model, one can simply execute
+For a quick demo on an example song with our pre-trained best vocal separation model (M5-HighSR), one can simply execute
 
-`` python Predict.py with cfg.baseline_stereo ``
+`` python Predict.py with cfg.full_44KHz ``
 
 to separate the song "Mallory" included in this repository's ``audio_examples`` subfolder into vocals and accompaniment. The output will be saved next to the input file.
 
 To apply our pretrained model to any of your own songs, simply point to its audio file path using the ``input_path`` parameter:
 
-`` python Predict.py with cfg.baseline_stereo input_path="/mnt/medien/Daniel/Music/Dark Passion Play/Nightwish - Bye Bye Beautiful.mp3"``
+`` python Predict.py with cfg.full_44KHz input_path="/mnt/medien/Daniel/Music/Dark Passion Play/Nightwish - Bye Bye Beautiful.mp3"``
 
 If you want to save the predictions to a custom folder instead of where the input song is, just add the ``output_path`` parameter:
 
-`` python Predict.py with cfg.baseline_stereo input_path="/mnt/medien/Daniel/Music/Dark Passion Play/Nightwish - Bye Bye Beautiful.mp3" output_path="/home/daniel" ``
+`` python Predict.py with cfg.full_44KHz input_path="/mnt/medien/Daniel/Music/Dark Passion Play/Nightwish - Bye Bye Beautiful.mp3" output_path="/home/daniel" ``
 
-If you want to use other pre-trained models we provide or your own ones, point to the location of the Tensorflow checkpoint file using the ``model_path`` parameter, making sure that the model configuration (here: ``full_multi_instrument``) matches with the model saved in the checkpoint. As an example for our pre-packaged multi-instrument model:
+If you want to use other pre-trained models we provide (such as our multi-instrument separator) or your own ones, point to the location of the Tensorflow checkpoint file using the ``model_path`` parameter, making sure that the model configuration (here: ``full_multi_instrument``) matches with the model saved in the checkpoint. As an example for our pre-packaged multi-instrument model:
 
 `` python Predict.py with cfg.full_multi_instrument model_path="checkpoints/full_multi_instrument/full_multi_instrument-134067" input_path="/mnt/medien/Daniel/Music/Dark Passion Play/Nightwish - Bye Bye Beautiful.mp3" output_path="/home/daniel" ``
 

@@ -79,6 +79,17 @@ def full():
     }
 
 @config_ingredient.named_config
+def full_44KHz():
+    print("Training full singing voice separation model, with difference output and input context (valid convolutions) and stereo input/output, and learned upsampling layer, and 44.1 KHz sampling rate")
+    model_config = {
+        "output_type" : "difference",
+        "context" : True,
+        "upsampling": "learned",
+        "mono_downmix" : False,
+        "expected_sr" : 44100
+    }
+
+@config_ingredient.named_config
 def baseline_context_smallfilter_deep():
     model_config = {
         "output_type": "difference",

@@ -7,7 +7,7 @@ ex = Experiment('Waveunet Prediction', ingredients=[config_ingredient])
 
 @ex.config
 def cfg():
-    model_path = os.path.join("checkpoints", "baseline_stereo", "baseline_stereo-186093") # Load stereo vocal model by default
+    model_path = os.path.join("checkpoints", "full_44KHz", "full_44KHz-236118") # Load stereo vocal model by default
     input_path = os.path.join("audio_examples", "The Mountaineering Club - Mallory", "mix.mp3") # Which audio file to separate
     output_path = None # Where to save results. Default: Same location as input.
 
