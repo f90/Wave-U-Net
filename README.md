@@ -30,6 +30,7 @@ Then, the following Python packages need to be installed:
 
 ```
 numpy==1.15.4
+matplotlib<3.0
 sacred==0.7.3
 tensorflow-gpu==1.8.0
 librosa==0.6.2
