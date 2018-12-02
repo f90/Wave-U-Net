@@ -1,10 +1,8 @@
 import os.path
 import subprocess
-import warnings
 
 import librosa
 import numpy as np
-import skimage.io as io
 import tensorflow as tf
 from soundfile import SoundFile
 
@@ -475,10 +473,3 @@ def reconPhase(magnitude, fftWindowSize, hopSize, phaseIterations=10, initPhase=
         else:
             audio = librosa.istft(spectrum, hopSize)
     return audio
-
-def saveSpectrogramToImage(spectrogram, filePath):
-    image = np.clip((spectrogram - np.min(spectrogram)) / (np.max(spectrogram) - np.min(spectrogram)), 0, 1)
-    # Ignore Low-contrast image warnings
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        io.imsave(filePath, image)

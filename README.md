@@ -30,11 +30,9 @@ Then, the following Python packages need to be installed:
 
 ```
 numpy==1.15.4
-matplotlib<3.0
 sacred==0.7.3
 tensorflow-gpu==1.8.0
 librosa==0.6.2
-scikit-image==0.13.1
 soundfile==0.10.2
 scikits.audiolab==0.11.0
 lxml==4.2.1
@@ -48,6 +46,8 @@ Alternatively to ``tensorflow-gpu`` the CPU version of TF, ``tensorflow`` can be
 All the above packages are also saved in the file ``requirements.txt`` located in this repository, so you can clone the repository and then execute the following in the downloaded repository's path to install all the required packages at once:
 
 ``pip install -r requirements.txt``
+
+To recreate the figures from the paper, use functions in ``Plot.py``. The ``matplotlib<3.0`` package needs to be installed as well in that case.
 
 ### Download datasets
 

@@ -1,9 +1,7 @@
 numpy==1.15.4
-matplotlib<3.0
 sacred==0.7.3
 tensorflow-gpu==1.8.0
 librosa==0.6.2
-scikit-image==0.13.1
 soundfile==0.10.2
 scikits.audiolab==0.11.0
 lxml==4.2.1
