@@ -129,6 +129,6 @@ If you want to use other pre-trained models we provide (such as our multi-instru
 
 # Known issues / Troubleshooting
 
-MacOS: If matplotlib throws an ImportError, see [this issue](https://github.com/f90/Wave-U-Net/issues/8) for how to fix it.  
+MacOS: If matplotlib gives errors upon being imported, see [this issue](https://github.com/f90/Wave-U-Net/issues/15) and [that issue](https://github.com/f90/Wave-U-Net/issues/8) for solutions.  
 
 During the preparation of the MUSDB dataset, conversion to WAV can sometimes halt because of an ffmpeg process freezing that is used within the musdb python package to identify the datasets mp4 audio streams. This seems to be an error occurring upon the subprocess.Popen() used deep within the stempeg library. Due to its random nature, it is not currently known how to fix this. I suggest regenerating the dataset again if this error occurs.
