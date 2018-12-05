@@ -214,7 +214,7 @@ def compute_mean_metrics(json_folder, compute_averages=True, metric="SDR"):
     This is the output of the "produce_musdb_source_estimates" function.(By default, this is model_config["estimates_path"] + test or train)
     :param compute_averages: Whether to compute the average over all song segments (to get final evaluation measures) or to return the full list of segments
     :param metric: Which metric to evaluate (either "SDR", "SIR", "SAR" or "ISR")
-    :return: IF compute_averages is True, returns a list with length equal to the number of separated sources, with each list element a tuple of (mean, SD, median, MAD).
+    :return: IF compute_averages is True, returns a list with length equal to the number of separated sources, with each list element a tuple of (median, MAD, mean, SD).
     If it is false, also returns this list, but each element is now a numpy vector containing all segment-wise performance values
     '''
     files = glob.glob(os.path.join(json_folder, "*.json"))
