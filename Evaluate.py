@@ -204,24 +204,37 @@ def produce_source_estimates(model_config, load_model, input_path, output_path=N
     for source_name, source_audio in sources_pred.items():
         librosa.output.write_wav(os.path.join(output_path, input_filename) + "_" + source_name + ".wav", source_audio, sr)
 
-def compute_mean_metrics(json_folder, compute_averages=True):
+def compute_mean_metrics(json_folder, compute_averages=True, metric="SDR"):
+    '''
+    Computes averages or collects evaluation metrics produced from MUSDB evaluation of a separator
+     (see "produce_musdb_source_estimates" function), namely the mean, standard deviation, median, and median absolute
+     deviation (MAD). Function is used to produce the results in the paper.
+     Averaging ignores NaN values arising from parts where a source is silent
+    :param json_folder: Path to the folder in which a collection of json files was written by the MUSDB evaluation library, one for each song.
+    This is the output of the "produce_musdb_source_estimates" function.(By default, this is model_config["estimates_path"] + test or train)
+    :param compute_averages: Whether to compute the average over all song segments (to get final evaluation measures) or to return the full list of segments
+    :param metric: Which metric to evaluate (either "SDR", "SIR", "SAR" or "ISR")
+    :return: IF compute_averages is True, returns a list with length equal to the number of separated sources, with each list element a tuple of (mean, SD, median, MAD).
+    If it is false, also returns this list, but each element is now a numpy vector containing all segment-wise performance values
+    '''
     files = glob.glob(os.path.join(json_folder, "*.json"))
-    sdr_inst_list = None
+    inst_list = None
+    print("Found " + str(len(files)) + " JSON files to evaluate...")
     for path in files:
         #print(path)
         with open(path, "r") as f:
             js = json.load(f)
 
-        if sdr_inst_list is None:
-            sdr_inst_list = [list() for _ in range(len(js["targets"]))]
+        if inst_list is None:
+            inst_list = [list() for _ in range(len(js["targets"]))]
 
         for i in range(len(js["targets"])):
-            sdr_inst_list[i].extend([np.float(f['metrics']["SDR"]) for f in js["targets"][i]["frames"]])
+            inst_list[i].extend([np.float(f['metrics'][metric]) for f in js["targets"][i]["frames"]])
 
     #return np.array(sdr_acc), np.array(sdr_voc)
-    sdr_inst_list = [np.array(sdr) for sdr in sdr_inst_list]
+    inst_list = [np.array(perf) for perf in inst_list]
 
     if compute_averages:
-        return [(np.nanmedian(sdr), np.nanmedian(np.abs(sdr - np.nanmedian(sdr))), np.nanmean(sdr), np.nanstd(sdr)) for sdr in sdr_inst_list]
+        return [(np.nanmedian(perf), np.nanmedian(np.abs(perf - np.nanmedian(perf))), np.nanmean(perf), np.nanstd(perf)) for perf in inst_list]
     else:
-        return sdr_inst_list
+        return inst_list
