@@ -34,7 +34,6 @@ def cfg():
                     'raw_audio_loss' : True, # Only active for unet_spectrogram network. True: L2 loss on audio. False: L1 loss on spectrogram magnitudes for training and validation and test loss
                     'worse_epochs' : 20, # Patience for early stoppping on validation set
                     }
-    seed=1337
     experiment_id = np.random.randint(0,1000000)
 
     model_config["num_sources"] = 4 if model_config["task"] == "multi_instrument" else 2
@@ -61,7 +60,7 @@ def baseline_context():
 
 @config_ingredient.named_config
 def baseline_stereo():
-    print("Training baseline model with difference output and input context (valid convolutions)")
+    print("Training baseline model with difference output and input context (valid convolutions) and stereo input/output")
     model_config = {
         "output_type" : "difference",
         "context" : True,
