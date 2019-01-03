@@ -20,7 +20,8 @@ from tensorflow.contrib.signal.python.ops import window_ops
 ex = Experiment('Waveunet Training', ingredients=[config_ingredient])
 
 @ex.config
-def set_seed(): # Executed for training, sets the seed value to the Sacred config so that Sacred fixes the Python and Numpy RNG to the same state everytime.
+# Executed for training, sets the seed value to the Sacred config so that Sacred fixes the Python and Numpy RNG to the same state everytime.
+def set_seed():
     seed = 1337
 
 @config_ingredient.capture
