@@ -1,9 +1,5 @@
 import tensorflow as tf
-
-import Models.SincConv
-from tensorflow.contrib.layers import layer_norm
 import Utils
-from Models import AttentionLayer
 from Utils import LeakyReLU
 import numpy as np
 import OutputLayer
@@ -32,8 +28,6 @@ class UnetAudioSeparator:
         self.num_sources = model_config["num_sources"]
         self.num_channels = 1 if model_config["mono_downmix"] else 2
         self.output_activation = model_config["output_activation"]
-
-        self.attention = True
 
     def get_padding(self, shape):
         '''
