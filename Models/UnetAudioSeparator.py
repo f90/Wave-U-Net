@@ -1,6 +1,9 @@
 import tensorflow as tf
 
+import Models.SincConv
+from tensorflow.contrib.layers import layer_norm
 import Utils
+from Models import AttentionLayer
 from Utils import LeakyReLU
 import numpy as np
 import OutputLayer
@@ -11,21 +14,26 @@ class UnetAudioSeparator:
     Uses valid convolutions, so it predicts for the centre part of the input - only certain input and output shapes are therefore possible (see getpadding function)
     '''
 
-    def __init__(self, num_layers, num_initial_filters, upsampling, output_type, context, num_sources, mono, filter_size, merge_filter_size):
+    def __init__(self, model_config):
         '''
         Initialize U-net
         :param num_layers: Number of down- and upscaling layers in the network 
         '''
-        self.num_layers = num_layers
-        self.num_initial_filters = num_initial_filters
-        self.filter_size = filter_size
-        self.merge_filter_size = merge_filter_size
-        self.upsampling = upsampling
-        self.output_type = output_type
-        self.context = context
-        self.padding = "valid" if context else "same"
-        self.num_sources = num_sources
-        self.num_channels = 1 if mono else 2
+        self.num_layers = model_config["num_layers"]
+        self.num_initial_filters = model_config["num_initial_filters"]
+        self.filter_size = model_config["filter_size"]
+        self.merge_filter_size = model_config["merge_filter_size"]
+        self.input_filter_size = model_config["input_filter_size"]
+        self.output_filter_size = model_config["output_filter_size"]
+        self.upsampling = model_config["upsampling"]
+        self.output_type = model_config["output_type"]
+        self.context = model_config["context"]
+        self.padding = "valid" if model_config["context"] else "same"
+        self.num_sources = model_config["num_sources"]
+        self.num_channels = 1 if model_config["mono_downmix"] else 2
+        self.output_activation = model_config["output_activation"]
+
+        self.attention = True
 
     def get_padding(self, shape):
         '''
@@ -37,7 +45,11 @@ class UnetAudioSeparator:
         if self.context:
             # Check if desired shape is possible as output shape - go from output shape towards lowest-res feature map
             rem = float(shape[1]) # Cut off batch size number and channel
-            #rem = rem +  self.filter_size - 1
+
+            # Output filter size
+            rem = rem - self.output_filter_size + 1
+
+            # Upsampling blocks
             for i in range(self.num_layers):
                 rem = rem + self.merge_filter_size - 1
                 rem = (rem + 1.) / 2.# out = in + in - 1 <=> in = (out+1)/
@@ -59,8 +71,13 @@ class UnetAudioSeparator:
                 output_shape = output_shape - self.merge_filter_size + 1 # Conv
 
                 input_shape = 2*input_shape - 1 # Decimation
-                input_shape = input_shape + self.filter_size - 1 # Conv
+                if i < self.num_layers - 1:
+                    input_shape = input_shape + self.filter_size - 1 # Conv
+                else:
+                    input_shape = input_shape + self.input_filter_size - 1
 
+            # Output filters
+            output_shape = output_shape - self.output_filter_size + 1
 
             input_shape = np.concatenate([[shape[0]], [input_shape], [self.num_channels]])
             output_shape = np.concatenate([[shape[0]], [output_shape], [self.num_channels]])
@@ -69,7 +86,7 @@ class UnetAudioSeparator:
         else:
             return [shape[0], shape[1], self.num_channels], [shape[0], shape[1], self.num_channels]
 
-    def get_output(self, input, training=None, return_spectrogram=False, reuse=True):
+    def get_output(self, input, training, return_spectrogram=False, reuse=True):
         '''
         Creates symbolic computation graph of the U-Net for a given input batch
         :param input: Input batch of mixtures, 3D tensor [batch_size, num_samples, num_channels]
@@ -94,7 +111,6 @@ class UnetAudioSeparator:
             for i in range(self.num_layers):
                 #UPSAMPLING
                 current_layer = tf.expand_dims(current_layer, axis=1)
-
                 if self.upsampling == 'learned':
                     # Learned interpolation between two neighbouring time positions by using a convolution filter of width 2, and inserting the responses in the middle of the two respective inputs
                     current_layer = Utils.learned_interpolation_layer(current_layer, self.padding, i)
@@ -103,8 +119,8 @@ class UnetAudioSeparator:
                         current_layer = tf.image.resize_bilinear(current_layer, [1, current_layer.get_shape().as_list()[2] * 2 - 1], align_corners=True)
                     else:
                         current_layer = tf.image.resize_bilinear(current_layer, [1, current_layer.get_shape().as_list()[2]*2]) # out = in + in - 1
-                #current_layer = tf.layers.conv2d_transpose(current_layer, self.num_initial_filters + (16 * (self.num_layers-i-1)), [1, 15], strides=[1, 2], activation=LeakyReLU, padding='same') # output = input * stride + filter - stride
                 current_layer = tf.squeeze(current_layer, axis=1)
+                # UPSAMPLING FINISHED
 
                 assert(enc_outputs[-i-1].get_shape().as_list()[1] == current_layer.get_shape().as_list()[1] or self.context) #No cropping should be necessary unless we are using context
                 current_layer = Utils.crop_and_concat(enc_outputs[-i-1], current_layer, match_feature_dim=False)
@@ -115,10 +131,18 @@ class UnetAudioSeparator:
             current_layer = Utils.crop_and_concat(input, current_layer, match_feature_dim=False)
 
             # Output layer
+            # Determine output activation function
+            if self.output_activation == "tanh":
+                out_activation = tf.tanh
+            elif self.output_activation == "linear":
+                out_activation = lambda x: Utils.AudioClip(x, training)
+            else:
+                raise NotImplementedError
+
             if self.output_type == "direct":
-                return OutputLayer.independent_outputs(current_layer, self.num_sources, self.num_channels)
+                return OutputLayer.independent_outputs(current_layer, self.num_sources, self.num_channels, self.output_filter_size, self.padding, out_activation)
             elif self.output_type == "difference":
                 cropped_input = Utils.crop(input,current_layer.get_shape().as_list(), match_feature_dim=False)
-                return OutputLayer.difference_output(cropped_input, current_layer, self.num_sources, self.num_channels)
+                return OutputLayer.difference_output(cropped_input, current_layer, self.num_sources, self.num_channels, self.output_filter_size, self.padding, out_activation, training)
             else:
                 raise NotImplementedError

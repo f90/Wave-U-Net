@@ -14,14 +14,7 @@ def test(model_config, audio_list, model_folder, load_model):
     # Determine input and output shapes
     disc_input_shape = [model_config["batch_size"], model_config["num_frames"], 0]  # Shape of discriminator input
     if model_config["network"] == "unet":
-        separator_class = Models.UnetAudioSeparator.UnetAudioSeparator(model_config["num_layers"], model_config["num_initial_filters"],
-                                                                   output_type=model_config["output_type"],
-                                                                   context=model_config["context"],
-                                                                   mono=model_config["mono_downmix"],
-                                                                   upsampling=model_config["upsampling"],
-                                                                   num_sources=model_config["num_sources"],
-                                                                   filter_size=model_config["filter_size"],
-                                                                   merge_filter_size=model_config["merge_filter_size"])
+        separator_class = Models.UnetAudioSeparator.UnetAudioSeparator(model_config)
     elif model_config["network"] == "unet_spectrogram":
         separator_class = Models.UnetSpectrogramSeparator.UnetSpectrogramSeparator(model_config["num_layers"], model_config["num_initial_filters"],
                                                                        mono=model_config["mono_downmix"],

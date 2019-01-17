@@ -29,14 +29,7 @@ def train(model_config, experiment_id, sup_dataset, load_model=None):
     # Determine input and output shapes
     disc_input_shape = [model_config["batch_size"], model_config["num_frames"], 0]  # Shape of input
     if model_config["network"] == "unet":
-        separator_class = Models.UnetAudioSeparator.UnetAudioSeparator(model_config["num_layers"], model_config["num_initial_filters"],
-                                                                   output_type=model_config["output_type"],
-                                                                   context=model_config["context"],
-                                                                   mono=model_config["mono_downmix"],
-                                                                   upsampling=model_config["upsampling"],
-                                                                   num_sources=model_config["num_sources"],
-                                                                   filter_size=model_config["filter_size"],
-                                                                   merge_filter_size=model_config["merge_filter_size"])
+        separator_class = Models.UnetAudioSeparator.UnetAudioSeparator(model_config)
     elif model_config["network"] == "unet_spectrogram":
         separator_class = Models.UnetSpectrogramSeparator.UnetSpectrogramSeparator(model_config["num_layers"], model_config["num_initial_filters"],
                                                                        mono=model_config["mono_downmix"],
@@ -65,7 +58,6 @@ def train(model_config, experiment_id, sup_dataset, load_model=None):
     # Placeholders and input normalisation
     mix_context, sources = Input.get_multitrack_placeholders(sep_output_shape, model_config["num_sources"], sep_input_shape, "sup")
     #tf.summary.audio("mix", mix_context, 22050, collections=["sup"])
-    mix = Utils.crop(mix_context, sep_output_shape)
 
     print("Training...")
 
@@ -73,7 +65,7 @@ def train(model_config, experiment_id, sup_dataset, load_model=None):
     # Separator
     separator_sources = separator_func(mix_context, True, not model_config["raw_audio_loss"], reuse=False) # Sources are output in order [acc, voice] for voice separation, [bass, drums, other, vocals] for multi-instrument separation
 
-    # Supervised objective: MSE in log-normalized magnitude space
+    # Supervised objective: MSE for raw audio, MAE for magnitude space (Jansson U-Net)
     separator_loss = 0
     for (real_source, sep_source) in zip(sources, separator_sources):
         if model_config["network"] == "unet_spectrogram" and not model_config["raw_audio_loss"]:

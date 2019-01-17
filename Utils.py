@@ -3,6 +3,9 @@ import numpy as np
 import librosa
 from scipy.signal import resample_poly
 from fractions import gcd
+import scipy
+
+#import matplotlib.pyplot as plt
 
 def resample(audio, orig_sr, new_sr):
     orig_dtype = audio.dtype
@@ -27,6 +30,9 @@ def crop_and_concat(x1,x2, match_feature_dim=True):
     :param x2: Second input
     :return: Combined feature map
     '''
+    if x2 is None:
+        return x1
+
     x1 = crop(x1,x2.get_shape().as_list(), match_feature_dim)
     return tf.concat([x1, x2], axis=2)
 
@@ -106,6 +112,18 @@ def learned_interpolation_layer(input, padding, level):
 
 def LeakyReLU(x, alpha=0.2):
     return tf.maximum(alpha*x, x)
+
+def AudioClip(x, training):
+    '''
+    Simply returns the input if training is set to True, otherwise clips the input to [-1,1]
+    :param x: Input tensor (coming from last layer of neural network)
+    :param training: Whether model is in training (True) or testing mode (False)
+    :return: Output tensor (potentially clipped)
+    '''
+    if training:
+        return x
+    else:
+        return tf.maximum(tf.minimum(x, 1.0), -1.0)
 
 def load(path, sr=22050, mono=True, offset=0.0, duration=None, dtype=np.float32):
     # ALWAYS output (n_frames, n_channels) audio

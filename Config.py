@@ -21,11 +21,14 @@ def cfg():
                     'num_layers' : 12, # How many U-Net layers
                     'filter_size' : 15, # For Wave-U-Net: Filter size of conv in downsampling block
                     'merge_filter_size' : 5, # For Wave-U-Net: Filter size of conv in upsampling block
+                    'input_filter_size' : 15, # For Wave-U-Net: Filter size of first convolution in first downsampling block
+                    'output_filter_size': 1, # For Wave-U-Net: Filter size of first convolution in first downsampling block
                     'num_initial_filters' : 24, # Number of filters for convolution in first layer of network
                     "num_frames": 16384, # DESIRED number of time frames in the output waveform per samples (could be changed when using valid padding)
                     'expected_sr': 22050,  # Downsample all audio input to this sampling rate
                     'mono_downmix': True,  # Whether to downsample the audio input
                     'output_type' : 'direct', # Type of output layer, either "direct" or "difference". Direct output: Each source is result of tanh activation and independent. DIfference: Last source output is equal to mixture input - sum(all other sources)
+                    'output_activation' : 'tanh', # Activation function for output layer. "tanh" or "linear". Linear output involves clipping to [-1,1] at test time, and might be more stable than tanh
                     'context' : False, # Type of padding for convolutions in separator. If False, feature maps double or half in dimensions after each convolution, and convolutions are padded with zeros ("same" padding). If True, convolution is only performed on the available mixture input, thus the output is smaller than the input
                     'network' : 'unet', # Type of network architecture, either unet (our model) or unet_spectrogram (Jansson et al 2017 model)
                     'upsampling' : 'linear', # Type of technique used for upsampling the feature maps in a unet architecture, either 'linear' interpolation or 'learned' filling in of extra samples
