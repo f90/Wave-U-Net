@@ -3,9 +3,6 @@ import numpy as np
 import librosa
 from scipy.signal import resample_poly
 from fractions import gcd
-import scipy
-
-#import matplotlib.pyplot as plt
 
 def resample(audio, orig_sr, new_sr):
     orig_dtype = audio.dtype
