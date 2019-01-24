@@ -38,6 +38,24 @@ def crop_and_concat(x1,x2, match_feature_dim=True):
     x1 = crop(x1,x2.get_shape().as_list(), match_feature_dim)
     return tf.concat([x1, x2], axis=2)
 
+def random_amplify(sample):
+    '''
+    Randomly amplifies or attenuates the input signal
+    :return: Amplified signal
+    '''
+    for key, val in sample.items():
+        if key != "mix":
+            sample[key] = tf.random_uniform([], 0.7, 1.0) * val
+
+    sample["mix"] = tf.add_n([val for key, val in sample.items() if key != "mix"])
+    return sample
+
+def crop_sample(sample, crop_frames):
+    for key, val in sample.items():
+        if key != "mix" and crop_frames > 0:
+            sample[key] = val[crop_frames:-crop_frames,:]
+    return sample
+
 def pad_freqs(tensor, target_shape):
     '''
     Pads the frequency axis of a 4D tensor of shape [batch_size, freqs, timeframes, channels] or 2D tensor [freqs, timeframes] with zeros

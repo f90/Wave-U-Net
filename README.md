@@ -34,7 +34,6 @@ sacred==0.7.3
 tensorflow-gpu==1.8.0
 librosa==0.6.2
 soundfile==0.10.2
-scikits.audiolab==0.11.0
 lxml==4.2.1
 musdb==0.2.3
 museval==0.2.0
