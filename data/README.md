@@ -1,0 +1,2 @@
+Pre-processed datasets will be saved here to speed up training!
+Different configurations require different datasets (one subfolder will be created for each one), so it might be desirable to delete some from time to time manually to save space!

@@ -13,15 +13,18 @@ class UnetSpectrogramSeparator:
     Uses "same" convolutions like in original paper
     '''
 
-    def __init__(self, num_layers, num_initial_filters, mono, num_sources):
+    def __init__(self, model_config):
         '''
         Initialize U-net
         :param num_layers: Number of down- and upscaling layers in the network
         '''
-        self.num_layers = num_layers
-        self.num_initial_filters = num_initial_filters
-        self.num_channels = 1 if mono else 2
-        self.num_sources = num_sources
+        self.num_layers = model_config["num_layers"]
+        self.num_initial_filters = model_config["num_initial_filters"]
+        self.mono = model_config["mono_downmix"]
+        self.source_names = model_config["source_names"]
+
+        assert(len(self.source_names) == 2) # Only use for acc/voice separation for now, since model gets too big otherwise
+        assert(self.mono) # Only mono
 
         # Spectrogram settings
         self.frame_len = 1024
@@ -60,8 +63,8 @@ class UnetSpectrogramSeparator:
             mix_mag_norm = tf.log1p(tf.expand_dims(mix_mag, 3))
             mix_mag_norm = mix_mag_norm[:,:,:-1,:] # Cut off last frequency bin to make number of frequency bins divisible by 2
 
-            mags = list()
-            for s in range(2):
+            mags = dict()
+            for name in self.source_names:
                 current_layer = mix_mag_norm
 
                 # Down-convolution: Repeat pool-conv
@@ -90,23 +93,20 @@ class UnetSpectrogramSeparator:
 
                 # Compute source magnitudes
                 source_mag = tf.multiply(mix_mag, mask)
-                mags.append(source_mag)
+                mags[name] = source_mag
 
             if return_spectrogram:
                 return mags
             else:
+                audio_out = dict()
                 # Reconstruct audio
-                acc_stft = tf.multiply(tf.complex(mags[0], 0.0), tf.exp(tf.complex(0.0, mix_angle)))
-                voice_stft = tf.multiply(tf.complex(mags[1], 0.0), tf.exp(tf.complex(0.0, mix_angle)))
+                for source_name in mags.keys():
+                    stft = tf.multiply(tf.complex(mags[source_name], 0.0), tf.exp(tf.complex(0.0, mix_angle)))
+                    audio = tf.contrib.signal.inverse_stft(stft, self.frame_len, self.hop, self.frame_len, window_fn=inv_window)
 
-                acc_audio = tf.contrib.signal.inverse_stft(acc_stft, self.frame_len, self.hop, self.frame_len, window_fn=inv_window)
-                voice_audio = tf.contrib.signal.inverse_stft(voice_stft, self.frame_len, self.hop, self.frame_len, window_fn=inv_window)
+                    # Reshape to [batch_size, samples, 1]
+                    audio = tf.expand_dims(audio, 2)
 
-                tf.summary.audio("acc_audio", acc_audio, 8192, collections=["sup"])
-                tf.summary.audio("voice_audio", voice_audio, 8192, collections=["sup"])
+                    audio_out[source_name] = audio
 
-                # Reshape to [batch_size, samples, 1]
-                acc_audio = tf.expand_dims(acc_audio, 2)
-                voice_audio = tf.expand_dims(voice_audio, 2)
-
-                return acc_audio, voice_audio
+                return audio_out

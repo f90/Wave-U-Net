@@ -5,12 +5,9 @@ import numpy as np
 import os
 
 import Datasets
-from Input import Input as Input
-from Input import batchgenerators as batchgen
 import Utils
 import Models.UnetSpectrogramSeparator
 import Models.UnetAudioSeparator
-import cPickle as pickle
 import Test
 import Evaluate
 
@@ -25,49 +22,36 @@ def set_seed():
     seed = 1337
 
 @config_ingredient.capture
-def train(model_config, experiment_id, sup_dataset, load_model=None):
+def train(model_config, experiment_id, load_model=None):
     # Determine input and output shapes
     disc_input_shape = [model_config["batch_size"], model_config["num_frames"], 0]  # Shape of input
     if model_config["network"] == "unet":
         separator_class = Models.UnetAudioSeparator.UnetAudioSeparator(model_config)
     elif model_config["network"] == "unet_spectrogram":
-        separator_class = Models.UnetSpectrogramSeparator.UnetSpectrogramSeparator(model_config["num_layers"], model_config["num_initial_filters"],
-                                                                       mono=model_config["mono_downmix"],
-                                                                       num_sources=model_config["num_sources"])
+        separator_class = Models.UnetSpectrogramSeparator.UnetSpectrogramSeparator(model_config)
     else:
         raise NotImplementedError
 
     sep_input_shape, sep_output_shape = separator_class.get_padding(np.array(disc_input_shape))
     separator_func = separator_class.get_output
 
-    # Creating the batch generators
-    assert((sep_input_shape[1] - sep_output_shape[1]) % 2 == 0)
-    pad_durations = np.array([float((sep_input_shape[1] - sep_output_shape[1])/2), 0, 0]) / float(model_config["expected_sr"])  # Input context that the input audio has to be padded ON EACH SIDE
-    sup_batch_gen = batchgen.BatchGen_Paired(
-        model_config,
-        sup_dataset,
-        sep_input_shape,
-        sep_output_shape,
-        pad_durations[0]
-    )
-
-    print("Starting worker")
-    sup_batch_gen.start_workers()
-    print("Started worker!")
-
     # Placeholders and input normalisation
-    mix_context, sources = Input.get_multitrack_placeholders(sep_output_shape, model_config["num_sources"], sep_input_shape, "sup")
-    #tf.summary.audio("mix", mix_context, 22050, collections=["sup"])
+    dataset = Datasets.get_dataset(model_config, sep_input_shape, sep_output_shape, partition="train")
+    iterator = dataset.make_one_shot_iterator()
+    batch = iterator.get_next()
 
     print("Training...")
 
     # BUILD MODELS
     # Separator
-    separator_sources = separator_func(mix_context, True, not model_config["raw_audio_loss"], reuse=False) # Sources are output in order [acc, voice] for voice separation, [bass, drums, other, vocals] for multi-instrument separation
+    separator_sources = separator_func(batch["mix"], True, not model_config["raw_audio_loss"], reuse=False) # Sources are output in order [acc, voice] for voice separation, [bass, drums, other, vocals] for multi-instrument separation
 
     # Supervised objective: MSE for raw audio, MAE for magnitude space (Jansson U-Net)
     separator_loss = 0
-    for (real_source, sep_source) in zip(sources, separator_sources):
+    for key in model_config["source_names"]:
+        real_source = batch[key]
+        sep_source = separator_sources[key]
+
         if model_config["network"] == "unet_spectrogram" and not model_config["raw_audio_loss"]:
             window = functools.partial(window_ops.hann_window, periodic=True)
             stfts = tf.contrib.signal.stft(tf.squeeze(real_source, 2), frame_length=1024, frame_step=768,
@@ -76,7 +60,7 @@ def train(model_config, experiment_id, sup_dataset, load_model=None):
             separator_loss += tf.reduce_mean(tf.abs(real_mag - sep_source))
         else:
             separator_loss += tf.reduce_mean(tf.square(real_source - sep_source))
-    separator_loss = separator_loss / float(len(sources)) # Normalise by number of sources
+    separator_loss = separator_loss / float(model_config["num_sources"]) # Normalise by number of sources
 
     # TRAINING CONTROL VARIABLES
     global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False, dtype=tf.int64)
@@ -114,25 +98,15 @@ def train(model_config, experiment_id, sup_dataset, load_model=None):
     saver = tf.train.Saver(tf.global_variables(), write_version=tf.train.SaverDef.V2)
 
     # Start training loop
-    run = True
     _global_step = sess.run(global_step)
     _init_step = _global_step
-    it = 0
-    while run:
+    for _ in range(model_config["epoch_it"]):
         # TRAIN SEPARATOR
-        sup_batch = sup_batch_gen.get_batch()
-        feed = {i:d for i,d in zip(sources, sup_batch[1:])}
-        feed.update({mix_context : sup_batch[0]})
-        _, _sup_summaries = sess.run([separator_solver, sup_summaries], feed)
+        _, _sup_summaries = sess.run([separator_solver, sup_summaries])
         writer.add_summary(_sup_summaries, global_step=_global_step)
 
         # Increment step counter, check if maximum iterations per epoch is achieved and stop in that case
         _global_step = sess.run(increment_global_step)
-
-        if _global_step - _init_step > model_config["epoch_it"]:
-            run = False
-            print("Finished training phase, stopping batch generators")
-            sup_batch_gen.stop_workers()
 
     # Epoch finished - Save model
     print("Finished epoch!")
@@ -147,7 +121,7 @@ def train(model_config, experiment_id, sup_dataset, load_model=None):
     return save_path
 
 @config_ingredient.capture
-def optimise(model_config, experiment_id, dataset):
+def optimise(model_config, experiment_id):
     epoch = 0
     best_loss = 10000
     model_path = None
@@ -157,13 +131,11 @@ def optimise(model_config, experiment_id, dataset):
         if i==1:
             print("Finished first round of training, now entering fine-tuning stage")
             model_config["batch_size"] *= 2
-            model_config["cache_size"] *= 2
-            model_config["min_replacement_rate"] *= 2
             model_config["init_sup_sep_lr"] = 1e-5
         while worse_epochs < model_config["worse_epochs"]: # Early stopping on validation set after a few epochs
             print("EPOCH: " + str(epoch))
-            model_path = train(sup_dataset=dataset["train"], load_model=model_path)
-            curr_loss = Test.test(model_config, model_folder=str(experiment_id), audio_list=dataset["valid"], load_model=model_path)
+            model_path = train(load_model=model_path)
+            curr_loss = Test.test(model_config, model_folder=str(experiment_id), partition="valid", load_model=model_path)
             epoch += 1
             if curr_loss < best_loss:
                 worse_epochs = 0
@@ -174,7 +146,7 @@ def optimise(model_config, experiment_id, dataset):
                 worse_epochs += 1
                 print("Performance on validation set worsened to " + str(curr_loss))
     print("TRAINING FINISHED - TESTING WITH BEST MODEL " + best_model_path)
-    test_loss = Test.test(model_config, model_folder=str(experiment_id), audio_list=dataset["test"], load_model=best_model_path)
+    test_loss = Test.test(model_config, model_folder=str(experiment_id), partition="test", load_model=best_model_path)
     return best_model_path, test_loss
 
 @ex.automain
@@ -186,74 +158,8 @@ def run(cfg):
         if not os.path.exists(dir):
             os.makedirs(dir)
 
-    # Set up data input
-    pickle_file = 'dataset_multi.pkl' if model_config["task"] == "multi_instrument" else "dataset_voice.pkl"
-    if os.path.exists(pickle_file): # Check whether our dataset file is already there, then load it
-        with open(pickle_file, 'r') as file:
-            dataset = pickle.load(file)
-        print("Loaded dataset from pickle!")
-    else: # Otherwise create the dataset pickle
-        # Check if MUSDB was prepared before
-        if os.path.exists("dataset_musdb_allstems.pkl"):
-            with open("dataset_musdb_allstems.pkl", 'r') as file:
-                dataset = pickle.load(file)
-            print("Loaded MUSDB base dataset from pickle!")
-        else: # We have to prepare the MUSDB dataset
-            print("Preparing MUSDB dataset! This could take a while...")
-            dsd_train, dsd_test = Datasets.getMUSDB(model_config["musdb_path"]) # List of (mix, acc, bass, drums, other, vocal) tuples
-
-            # Pick 25 random songs for validation from MUSDB train set (this is always the same selection each time since we fix the random seed!)
-            val_idx = np.random.choice(len(dsd_train), size=25, replace=False)
-            train_idx = [i for i in range(len(dsd_train)) if i not in val_idx]
-            print("Validation with MUSDB training songs no. " + str(train_idx))
-
-            # Draw randomly from datasets
-            dataset = dict()
-            dataset["train"] = [dsd_train[i] for i in train_idx]
-            dataset["valid"] = [dsd_train[i] for i in val_idx]
-            dataset["test"] = dsd_test
-
-            # Write full MUSDB dataset
-            with open("dataset_musdb_allstems.pkl", 'wb') as file:
-                pickle.dump(dataset, file)
-            print("Wrote MUSDB base dataset!")
-
-        # MUSDB base dataset loaded now, now create task-specific dataset based on that
-        if model_config["task"] == "multi_instrument":
-            # Write multi instrument dataset
-            # Remove acc stem from MUSDB
-            for subset in ["train", "valid", "test"]:
-                for i in range(len(dataset[subset])):
-                    dataset[subset][i] = (dataset[subset][i][0], dataset[subset][i][2], dataset[subset][i][3], dataset[subset][i][4], dataset[subset][i][5])
-            with open("dataset_multi.pkl", 'wb') as file:
-                pickle.dump(dataset,file)
-            print("Wrote multi-instrument dataset!")
-        else:
-            assert(model_config["task"] == "voice")
-
-            # Remove other instruments from base MUSDB
-            for subset in ["train", "valid", "test"]:
-                for i in range(len(dataset[subset])):
-                    dataset[subset][i] = (dataset[subset][i][0], dataset[subset][i][1], dataset[subset][i][5])
-
-            # Prepare CCMixter
-            print("Preparing CCMixter dataset!")
-            ccm = Datasets.getCCMixter("CCMixter.xml")
-            dataset["train"].extend(ccm)
-
-            # Save voice dataset
-            with open("dataset_voice.pkl", 'wb') as file:
-                pickle.dump(dataset, file)
-            print("Wrote voice separation dataset!")
-
-        print("LOADED DATASET")
-
-    # The dataset structure is a dictionary with "train", "valid", "test" keys, whose entries are lists, where each element represents a song.
-    # Each song is represented as a tuple of (mix, acc, vocal) or (mix, bass, drums, other, vocal) depending on the task.
-    # Each stem is a Sample object (see Sample class). Custom datasets can be fed by converting it to this data structure, then calling optimise
-
     # Optimize in a supervised fashion until validation loss worsens
-    sup_model_path, sup_loss = optimise(dataset=dataset)
+    sup_model_path, sup_loss = optimise()
     print("Supervised training finished! Saved model at " + sup_model_path + ". Performance: " + str(sup_loss))
 
     # Evaluate trained model on MUSDB

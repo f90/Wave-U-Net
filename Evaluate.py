@@ -6,7 +6,6 @@ import os
 import json
 import glob
 
-from Input import Input
 import Models.UnetAudioSeparator
 import Models.UnetSpectrogramSeparator
 
@@ -28,9 +27,7 @@ def predict(track, model_config, load_model, results_dir=None):
     if model_config["network"] == "unet":
         separator_class = Models.UnetAudioSeparator.UnetAudioSeparator(model_config)
     elif model_config["network"] == "unet_spectrogram":
-        separator_class = Models.UnetSpectrogramSeparator.UnetSpectrogramSeparator(model_config["num_layers"], model_config["num_initial_filters"],
-                                                                       mono=model_config["mono_downmix"],
-                                                                       num_sources=model_config["num_sources"])
+        separator_class = Models.UnetSpectrogramSeparator.UnetSpectrogramSeparator(model_config)
     else:
         raise NotImplementedError
 
@@ -41,13 +38,13 @@ def predict(track, model_config, load_model, results_dir=None):
     sep_input_shape[0] = 1
     sep_output_shape[0] = 1
 
-    mix_context, sources = Input.get_multitrack_placeholders(sep_output_shape, model_config["num_sources"], sep_input_shape, "input")
+    mix_ph = tf.placeholder(tf.float32, sep_input_shape)
 
     print("Testing...")
 
     # BUILD MODELS
     # Separator
-    separator_sources = separator_func(mix_context, False, False, reuse=False)
+    separator_sources = separator_func(mix_ph, training=False, return_spectrogram=False, reuse=False)
 
     # Start session and queue input threads
     sess = tf.Session()
@@ -61,31 +58,17 @@ def predict(track, model_config, load_model, results_dir=None):
     print('Pre-trained model restored for song prediction')
 
     mix_audio, orig_sr, mix_channels = track.audio, track.rate, track.audio.shape[1] # Audio has (n_samples, n_channels) shape
-    separator_preds = predict_track(model_config, sess, mix_audio, orig_sr, sep_input_shape, sep_output_shape, separator_sources, mix_context)
+    separator_preds = predict_track(model_config, sess, mix_audio, orig_sr, sep_input_shape, sep_output_shape, separator_sources, mix_ph)
 
-    # Upsample predicted source audio and convert to stereo
-    pred_audio = [Utils.resample(pred, model_config["expected_sr"], orig_sr) for pred in separator_preds]
+    # Upsample predicted source audio and convert to stereo. Make sure to resample back to the exact number of samples in the original input (with fractional orig_sr/new_sr this causes issues otherwise)
+    pred_audio = {name : Utils.resample_length(separator_preds[name], mix_audio.shape[0]) for name in model_config["source_names"]}
 
     if model_config["mono_downmix"] and mix_channels > 1: # Convert to multichannel if mixture input was multichannel by duplicating mono estimate
-        pred_audio = [np.tile(pred, [1, mix_channels]) for pred in pred_audio]
-
-    # Set estimates depending on estimation task (voice or multi-instrument separation)
-    if model_config["task"] == "voice": # [acc, vocals] order
-        estimates = {
-            'vocals' : pred_audio[1],
-            'accompaniment' : pred_audio[0]
-        }
-    else: # [bass, drums, other, vocals]
-        estimates = {
-            'bass' : pred_audio[0],
-            'drums' : pred_audio[1],
-            'other' : pred_audio[2],
-            'vocals' : pred_audio[3]
-        }
+        pred_audio = {name : np.tile(pred_audio[name], [1, mix_channels]) for name in pred_audio.keys()}
 
     # Evaluate using museval, if we are currently evaluating MUSDB
     if results_dir is not None:
-        scores = museval.eval_mus_track(track, estimates, output_dir=results_dir)
+        scores = museval.eval_mus_track(track, pred_audio, output_dir=results_dir)
 
         # print nicely formatted mean scores
         print(scores)
@@ -94,7 +77,7 @@ def predict(track, model_config, load_model, results_dir=None):
     sess.close()
     tf.reset_default_graph()
 
-    return estimates
+    return pred_audio
 
 def predict_track(model_config, sess, mix_audio, mix_sr, sep_input_shape, sep_output_shape, separator_sources, mix_context):
     '''
@@ -117,11 +100,19 @@ def predict_track(model_config, sess, mix_audio, mix_sr, sep_input_shape, sep_ou
     else:
         if mix_audio.shape[1] == 1:# Duplicate channels if input is mono but model is stereo
             mix_audio = np.tile(mix_audio, [1, 2])
+
     mix_audio = Utils.resample(mix_audio, mix_sr, model_config["expected_sr"])
+
+    # Append zeros to mixture if its shorter than input size of network - this will be cut off at the end again
+    if mix_audio.shape[0] < sep_input_shape[1]:
+        extra_pad = sep_input_shape[1] - mix_audio.shape[0]
+        mix_audio = np.pad(mix_audio, [(0, extra_pad), (0,0)], mode="constant", constant_values=0.0)
+    else:
+        extra_pad = 0
 
     # Preallocate source predictions (same shape as input mixture)
     source_time_frames = mix_audio.shape[0]
-    source_preds = [np.zeros(mix_audio.shape, np.float32) for _ in range(model_config["num_sources"])]
+    source_preds = {name : np.zeros(mix_audio.shape, np.float32) for name in model_config["source_names"]}
 
     input_time_frames = sep_input_shape[1]
     output_time_frames = sep_output_shape[1]
@@ -144,8 +135,12 @@ def predict_track(model_config, sess, mix_audio, mix_sr, sep_input_shape, sep_ou
 
         # Save predictions
         # source_shape = [1, freq_bins, acc_mag_part.shape[2], num_chan]
-        for i in range(model_config["num_sources"]):
-            source_preds[i][source_pos:source_pos + output_time_frames] = source_parts[i][0, :, :]
+        for name in model_config["source_names"]:
+            source_preds[name][source_pos:source_pos + output_time_frames] = source_parts[name][0, :, :]
+
+    # In case we had to pad the mixture at the end, remove those samples from source prediction now
+    if extra_pad > 0:
+        source_preds = {name : source_preds[name][:-extra_pad,:] for name in source_preds.keys()}
 
     return source_preds
 

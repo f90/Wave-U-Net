@@ -6,18 +6,18 @@ config_ingredient = Ingredient("cfg")
 @config_ingredient.config
 def cfg():
     # Base configuration
-    model_config = {"musdb_path" : "/home/daniel/Datasets/MUSDB18", # SET MUSDB PATH HERE, AND SET CCMIXTER PATH IN CCMixter.xml
+    model_config = {"musdb_path" : "/mnt/windaten/Datasets/MUSDB18/", # SET MUSDB PATH HERE, AND SET CCMIXTER PATH IN CCMixter.xml
                     "estimates_path" : "/mnt/windaten/Source_Estimates", # SET THIS PATH TO WHERE YOU WANT SOURCE ESTIMATES PRODUCED BY THE TRAINED MODEL TO BE SAVED. Folder itself must exist!
+                    "data_path" : "data", # Set this to where the preprocessed dataset should be saved
 
                     "model_base_dir" : "checkpoints", # Base folder for model checkpoints
                     "log_dir" : "logs", # Base folder for logs files
                     "batch_size" : 16, # Batch size
                     "init_sup_sep_lr" : 1e-4, # Supervised separator learning rate
                     "epoch_it" : 2000, # Number of supervised separator steps per epoch
-                    'cache_size' : 16, # Number of audio excerpts that are cached to build batches from
-                    'num_workers' : 6, # Number of processes reading audio and filling up the cache
-                    "duration" : 2, # Duration in seconds of the audio excerpts in the cache. Has to be at least the output length of the network!
-                    'min_replacement_rate' : 16,  # roughly: how many cache entries to replace at least per batch on average. Can be fractional
+                    'cache_size': 4000, # Number of audio snippets buffered in the random shuffle queue. Larger is better, since workers put multiple examples of one song into this queue. The number of different songs that is sampled from with each batch equals cache_size / num_snippets_per_track. Set as high as your RAM allows.
+                    'num_workers' : 4, # Number of processes used for each TF map operation used when loading the dataset
+                    "num_snippets_per_track" : 100, # Number of snippets that should be extracted from each song at a time after loading it. Higher values make data loading faster, but can reduce the batches song diversity
                     'num_layers' : 12, # How many U-Net layers
                     'filter_size' : 15, # For Wave-U-Net: Filter size of conv in downsampling block
                     'merge_filter_size' : 5, # For Wave-U-Net: Filter size of conv in upsampling block
@@ -39,7 +39,14 @@ def cfg():
                     }
     experiment_id = np.random.randint(0,1000000)
 
-    model_config["num_sources"] = 4 if model_config["task"] == "multi_instrument" else 2
+    # Set output sources
+    if model_config["task"] == "multi_instrument":
+        model_config["source_names"] = ["bass", "drums", "other", "vocals"]
+    elif model_config["task"] == "voice":
+        model_config["source_names"] = ["accompaniment", "vocals"]
+    else:
+        raise NotImplementedError
+    model_config["num_sources"] = len(model_config["source_names"])
     model_config["num_channels"] = 1 if model_config["mono_downmix"] else 2
 
 @config_ingredient.named_config
@@ -117,8 +124,6 @@ def full_multi_instrument():
 def baseline_comparison():
     model_config = {
         "batch_size": 4, # Less output since model is so big. Doesn't matter since the model's output is not dependent on its output or input size (only convolutions)
-        "cache_size": 4,
-        "min_replacement_rate" : 4,
 
         "output_type": "difference",
         "context": True,
@@ -132,8 +137,6 @@ def baseline_comparison():
 def unet_spectrogram():
     model_config = {
         "batch_size": 4, # Less output since model is so big.
-        "cache_size": 4,
-        "min_replacement_rate" : 4,
 
         "network" : "unet_spectrogram",
         "num_layers" : 6,
@@ -147,8 +150,6 @@ def unet_spectrogram():
 def unet_spectrogram_l1():
     model_config = {
         "batch_size": 4, # Less output since model is so big.
-        "cache_size": 4,
-        "min_replacement_rate" : 4,
 
         "network" : "unet_spectrogram",
         "num_layers" : 6,
@@ -156,5 +157,5 @@ def unet_spectrogram_l1():
         "num_frames" : 768 * 127 + 1024, # hop_size * (time_frames_of_spectrogram_input - 1) + fft_length
         "duration" : 13,
         "num_initial_filters" : 16,
-        "loss" : "magnitudes"
+        "raw_audio_loss" : False
     }

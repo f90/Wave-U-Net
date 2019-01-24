@@ -1,8 +1,10 @@
 import tensorflow as tf
+
+import Models.InterpolationLayer
 import Utils
 from Utils import LeakyReLU
 import numpy as np
-import OutputLayer
+import Models.OutputLayer
 
 class UnetAudioSeparator:
     '''
@@ -25,7 +27,7 @@ class UnetAudioSeparator:
         self.output_type = model_config["output_type"]
         self.context = model_config["context"]
         self.padding = "valid" if model_config["context"] else "same"
-        self.num_sources = model_config["num_sources"]
+        self.source_names = model_config["source_names"]
         self.num_channels = 1 if model_config["mono_downmix"] else 2
         self.output_activation = model_config["output_activation"]
 
@@ -107,7 +109,7 @@ class UnetAudioSeparator:
                 current_layer = tf.expand_dims(current_layer, axis=1)
                 if self.upsampling == 'learned':
                     # Learned interpolation between two neighbouring time positions by using a convolution filter of width 2, and inserting the responses in the middle of the two respective inputs
-                    current_layer = Utils.learned_interpolation_layer(current_layer, self.padding, i)
+                    current_layer = Models.InterpolationLayer.learned_interpolation_layer(current_layer, self.padding, i)
                 else:
                     if self.context:
                         current_layer = tf.image.resize_bilinear(current_layer, [1, current_layer.get_shape().as_list()[2] * 2 - 1], align_corners=True)
@@ -134,9 +136,9 @@ class UnetAudioSeparator:
                 raise NotImplementedError
 
             if self.output_type == "direct":
-                return OutputLayer.independent_outputs(current_layer, self.num_sources, self.num_channels, self.output_filter_size, self.padding, out_activation)
+                return Models.OutputLayer.independent_outputs(current_layer, self.source_names, self.num_channels, self.output_filter_size, self.padding, out_activation)
             elif self.output_type == "difference":
                 cropped_input = Utils.crop(input,current_layer.get_shape().as_list(), match_feature_dim=False)
-                return OutputLayer.difference_output(cropped_input, current_layer, self.num_sources, self.num_channels, self.output_filter_size, self.padding, out_activation, training)
+                return Models.OutputLayer.difference_output(cropped_input, current_layer, self.source_names, self.num_channels, self.output_filter_size, self.padding, out_activation, training)
             else:
                 raise NotImplementedError
