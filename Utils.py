@@ -108,14 +108,10 @@ def AudioClip(x, training):
 
 def load(path, sr=22050, mono=True, offset=0.0, duration=None, dtype=np.float32):
     # ALWAYS output (n_frames, n_channels) audio
-    y, orig_sr = librosa.load(path, None, mono, offset, duration, dtype)
+    y, orig_sr = librosa.load(path, sr, mono, offset, duration, dtype)
     if len(y.shape) == 1:
         y = np.expand_dims(y, axis=0)
-    y = y.T
-    if sr != None:
-        return resample(y, orig_sr, sr), sr
-    else:
-        return y, orig_sr
+    return y.T, orig_sr
 
 def crop(tensor, target_shape, match_feature_dim=True):
     '''
