@@ -61,7 +61,7 @@ def predict(track, model_config, load_model, results_dir=None):
     separator_preds = predict_track(model_config, sess, mix_audio, orig_sr, sep_input_shape, sep_output_shape, separator_sources, mix_ph)
 
     # Upsample predicted source audio and convert to stereo. Make sure to resample back to the exact number of samples in the original input (with fractional orig_sr/new_sr this causes issues otherwise)
-    pred_audio = {name : Utils.resample_length(separator_preds[name], mix_audio.shape[0]) for name in model_config["source_names"]}
+    pred_audio = {name : Utils.resample(separator_preds[name], model_config["expected_sr"], orig_sr)[:mix_audio.shape[0],:] for name in model_config["source_names"]}
 
     if model_config["mono_downmix"] and mix_channels > 1: # Convert to multichannel if mixture input was multichannel by duplicating mono estimate
         pred_audio = {name : np.tile(pred_audio[name], [1, mix_channels]) for name in pred_audio.keys()}

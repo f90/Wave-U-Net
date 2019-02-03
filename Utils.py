@@ -1,21 +1,6 @@
 import tensorflow as tf
 import numpy as np
 import librosa
-import scipy.signal
-from fractions import gcd
-
-def resample(audio, orig_sr, new_sr):
-    if orig_sr != new_sr:
-        new_length = int(float(audio.shape[0]) * float(new_sr) / float(orig_sr))
-        return resample_length(audio, new_length)
-    else:
-        return audio
-
-def resample_length(audio, new_length):
-    if new_length != audio.shape[0]:
-        return scipy.signal.resample(audio, new_length)
-    else:
-        return audio
 
 def getTrainableVariables(tag=""):
     return [v for v in tf.trainable_variables() if tag in v.name]
@@ -105,6 +90,9 @@ def AudioClip(x, training):
         return x
     else:
         return tf.maximum(tf.minimum(x, 1.0), -1.0)
+
+def resample(audio, orig_sr, new_sr):
+    return librosa.resample(audio.T, orig_sr, new_sr).T
 
 def load(path, sr=22050, mono=True, offset=0.0, duration=None, dtype=np.float32):
     # ALWAYS output (n_frames, n_channels) audio
