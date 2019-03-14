@@ -210,6 +210,10 @@ def compute_mean_metrics(json_folder, compute_averages=True, metric="SDR"):
     print("Found " + str(len(files)) + " JSON files to evaluate...")
     for path in files:
         #print(path)
+        if path.__contains__("test.json"):
+            print("Found test JSON, skipping...")
+            continue
+
         with open(path, "r") as f:
             js = json.load(f)
 
