@@ -51,8 +51,6 @@ class UnetSpectrogramSeparator:
         window = functools.partial(window_ops.hann_window, periodic=True)
         inv_window = tf.contrib.signal.inverse_stft_window_fn(self.hop, forward_window_fn=window)
         with tf.variable_scope("separator", reuse=reuse):
-            enc_outputs = list()
-
             # Compute spectrogram
             assert(input.get_shape().as_list()[2] == 1) # Model works ONLY on mono
             stfts = tf.contrib.signal.stft(tf.squeeze(input, 2), frame_length=self.frame_len, frame_step=self.hop, fft_length=self.frame_len, window_fn=window)
@@ -64,7 +62,8 @@ class UnetSpectrogramSeparator:
             mix_mag_norm = mix_mag_norm[:,:,:-1,:] # Cut off last frequency bin to make number of frequency bins divisible by 2
 
             mags = dict()
-            for name in self.source_names:
+            for name in self.source_names: # One U-Net for each source as per Jansson et al
+                enc_outputs = list()
                 current_layer = mix_mag_norm
 
                 # Down-convolution: Repeat pool-conv
