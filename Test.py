@@ -68,7 +68,7 @@ def test(model_config, partition, model_folder, load_model):
             separator_loss += tf.reduce_mean(tf.abs(real_mag - sep_source))
         else:
             separator_loss += tf.reduce_mean(tf.square(real_source - sep_source))
-        separator_loss = separator_loss / float(model_config["num_sources"])  # Normalise by number of sources
+    separator_loss = separator_loss / float(model_config["num_sources"])  # Normalise by number of sources
 
     while True:
         try:
