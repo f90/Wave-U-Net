@@ -73,12 +73,12 @@ def write_records(sample_list, model_config, input_shape, output_shape, records_
             continue
 
         # Pad at beginning and end with zeros
-        audio_tracks = {key : np.pad(audio_tracks[key], [(pad_frames, pad_frames), (0, 0)], mode="constant", constant_values=0.0) for key in audio_tracks.keys()}
+        audio_tracks = {key : np.pad(audio_tracks[key], [(pad_frames, pad_frames), (0, 0)], mode="constant", constant_values=0.0) for key in list(audio_tracks.keys())}
 
         # All audio tracks must be exactly same length and channels
         length = audio_tracks["mix"].shape[0]
         channels = audio_tracks["mix"].shape[1]
-        for audio in audio_tracks.values():
+        for audio in list(audio_tracks.values()):
             assert(audio.shape[0] == length)
             assert (audio.shape[1] == channels)
 
@@ -139,7 +139,7 @@ def get_dataset(model_config, input_shape, output_shape, partition):
         # Pick 25 random songs for validation from MUSDB train set (this is always the same selection each time since we fix the random seed!)
         val_idx = np.random.choice(len(dsd_train), size=25, replace=False)
         train_idx = [i for i in range(len(dsd_train)) if i not in val_idx]
-        print("Validation with MUSDB training songs no. " + str(train_idx))
+        print("Validation with MUSDB training songs no. " + str(val_idx))
 
         # Draw randomly from datasets
         dataset = dict()
@@ -257,7 +257,7 @@ def getMUSDB(database_path):
                 paths[stem] = path
 
             # Add other instruments to form accompaniment
-            acc_audio = np.clip(sum([stem_audio[key] for key in stem_audio.keys() if key != "vocals"]), -1.0, 1.0)
+            acc_audio = np.clip(sum([stem_audio[key] for key in list(stem_audio.keys()) if key != "vocals"]), -1.0, 1.0)
             soundfile.write(acc_path, acc_audio, rate, "PCM_16")
             paths["accompaniment"] = acc_path
 

@@ -1,8 +1,6 @@
 import tensorflow as tf
 
-import Utils
 from Utils import LeakyReLU
-import numpy as np
 import functools
 from tensorflow.contrib.signal.python.ops import window_ops
 
@@ -77,7 +75,6 @@ class UnetSpectrogramSeparator:
 
                 # Upconvolution
                 for i in range(self.num_layers - 1):
-                    #assert (current_layer.get_shape().as_list()[1] % 2 == 0 and current_layer.get_shape().as_list()[2] % 2 == 0)
                     # Repeat: Up-convolution (transposed conv with stride), copy-and-crop feature map from down-ward path, convolution to combine both feature maps
                     current_layer = tf.layers.conv2d_transpose(current_layer, self.num_initial_filters*(2**(self.num_layers-i-2)), [5, 5], strides=[2,2], activation=None, padding="same") # *2
                     current_layer = tf.contrib.layers.batch_norm(current_layer, is_training=training, activation_fn=tf.nn.relu)
@@ -99,7 +96,7 @@ class UnetSpectrogramSeparator:
             else:
                 audio_out = dict()
                 # Reconstruct audio
-                for source_name in mags.keys():
+                for source_name in list(mags.keys()):
                     stft = tf.multiply(tf.complex(mags[source_name], 0.0), tf.exp(tf.complex(0.0, mix_angle)))
                     audio = tf.contrib.signal.inverse_stft(stft, self.frame_len, self.hop, self.frame_len, window_fn=inv_window)
 

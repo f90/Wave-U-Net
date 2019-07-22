@@ -64,7 +64,7 @@ def predict(track, model_config, load_model, results_dir=None):
     pred_audio = {name : Utils.resample(separator_preds[name], model_config["expected_sr"], orig_sr)[:mix_audio.shape[0],:] for name in model_config["source_names"]}
 
     if model_config["mono_downmix"] and mix_channels > 1: # Convert to multichannel if mixture input was multichannel by duplicating mono estimate
-        pred_audio = {name : np.tile(pred_audio[name], [1, mix_channels]) for name in pred_audio.keys()}
+        pred_audio = {name : np.tile(pred_audio[name], [1, mix_channels]) for name in list(pred_audio.keys())}
 
     # Evaluate using museval, if we are currently evaluating MUSDB
     if results_dir is not None:
@@ -118,7 +118,7 @@ def predict_track(model_config, sess, mix_audio, mix_sr, sep_input_shape, sep_ou
     output_time_frames = sep_output_shape[1]
 
     # Pad mixture across time at beginning and end so that neural network can make prediction at the beginning and end of signal
-    pad_time_frames = (input_time_frames - output_time_frames) / 2
+    pad_time_frames = (input_time_frames - output_time_frames) // 2
     mix_audio_padded = np.pad(mix_audio, [(pad_time_frames, pad_time_frames), (0,0)], mode="constant", constant_values=0.0)
 
     # Iterate over mixture magnitudes, fetch network rpediction
@@ -140,7 +140,7 @@ def predict_track(model_config, sess, mix_audio, mix_sr, sep_input_shape, sep_ou
 
     # In case we had to pad the mixture at the end, remove those samples from source prediction now
     if extra_pad > 0:
-        source_preds = {name : source_preds[name][:-extra_pad,:] for name in source_preds.keys()}
+        source_preds = {name : source_preds[name][:-extra_pad,:] for name in list(source_preds.keys())}
 
     return source_preds
 
@@ -189,7 +189,7 @@ def produce_source_estimates(model_config, load_model, input_path, output_path=N
         print("WARNING: Given output path " + output_path + " does not exist. Trying to create it...")
         os.makedirs(output_path)
     assert(os.path.exists(output_path))
-    for source_name, source_audio in sources_pred.items():
+    for source_name, source_audio in list(sources_pred.items()):
         librosa.output.write_wav(os.path.join(output_path, input_filename) + "_" + source_name + ".wav", source_audio, sr)
 
 def compute_mean_metrics(json_folder, compute_averages=True, metric="SDR"):

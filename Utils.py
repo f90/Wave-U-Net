@@ -28,15 +28,15 @@ def random_amplify(sample):
     Randomly amplifies or attenuates the input signal
     :return: Amplified signal
     '''
-    for key, val in sample.items():
+    for key, val in list(sample.items()):
         if key != "mix":
             sample[key] = tf.random_uniform([], 0.7, 1.0) * val
 
-    sample["mix"] = tf.add_n([val for key, val in sample.items() if key != "mix"])
+    sample["mix"] = tf.add_n([val for key, val in list(sample.items()) if key != "mix"])
     return sample
 
 def crop_sample(sample, crop_frames):
-    for key, val in sample.items():
+    for key, val in list(sample.items()):
         if key != "mix" and crop_frames > 0:
             sample[key] = val[crop_frames:-crop_frames,:]
     return sample

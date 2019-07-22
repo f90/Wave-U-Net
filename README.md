@@ -24,7 +24,7 @@ The Wave-U-Net also participated in the [SiSec separation campaign](https://sise
 
 GPU strongly recommended to avoid very long training times.
 
-The project is based on Python 2.7 and requires [libsndfile](http://mega-nerd.com/libsndfile/) to be installed.
+The project is based on Python 3.6.8 and requires [libsndfile](http://mega-nerd.com/libsndfile/) and CUDA 9 to be installed.
 
 Then, the following Python packages need to be installed:
 
