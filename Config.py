@@ -22,7 +22,7 @@ def cfg():
                     'filter_size' : 15, # For Wave-U-Net: Filter size of conv in downsampling block
                     'merge_filter_size' : 5, # For Wave-U-Net: Filter size of conv in upsampling block
                     'input_filter_size' : 15, # For Wave-U-Net: Filter size of first convolution in first downsampling block
-                    'output_filter_size': 1, # For Wave-U-Net: Filter size of first convolution in first downsampling block
+                    'output_filter_size': 1, # For Wave-U-Net: Filter size of first convolution in last upsampling block
                     'num_initial_filters' : 24, # Number of filters for convolution in first layer of network
                     "num_frames": 16384, # DESIRED number of time frames in the output waveform per samples (could be changed when using valid padding)
                     'expected_sr': 22050,  # Downsample all audio input to this sampling rate
