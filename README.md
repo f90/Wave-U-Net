@@ -3,6 +3,8 @@ Implementation of the [Wave-U-Net](https://arxiv.org/abs/1806.03185) for audio s
 
 For the (improved) Pytorch version, click [here](https://github.com/f90/Wave-U-Net-Pytorch).
 
+For an implementation in Tensorflow 2/Keras, click [here](https://github.com/satvik-venkatesh/Wave-U-net-TF2).
+
 ## Listening examples
 
 Listen to vocal separation results [here](https://sisec18.unmix.app/#/unmix/Side%20Effects%20Project%20-%20Sing%20With%20Me/STL1) and to multi-instrument separation results [here](https://sisec18.unmix.app/#/unmix/Side%20Effects%20Project%20-%20Sing%20With%20Me/STL2)
