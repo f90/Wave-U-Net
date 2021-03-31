@@ -3,7 +3,7 @@ Implementation of the [Wave-U-Net](https://arxiv.org/abs/1806.03185) for audio s
 
 For the (improved) Pytorch version, click [here](https://github.com/f90/Wave-U-Net-Pytorch).
 
-For an implementation in Tensorflow 2/Keras, click [here](https://github.com/satvik-venkatesh/Wave-U-net-TF2).
+For a third-party implementation in Tensorflow 2/Keras (not by me), click [here](https://github.com/satvik-venkatesh/Wave-U-net-TF2).
 
 ## Listening examples
 
