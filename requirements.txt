@@ -1,4 +1,4 @@
-numpy==1.15.4
+numpy==1.22.0
 sacred==0.7.3
 tensorflow-gpu==1.8.0
 librosa==0.6.2
