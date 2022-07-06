@@ -3,7 +3,7 @@ sacred==0.7.3
 tensorflow-gpu==1.8.0
 librosa==0.6.2
 soundfile==0.10.2
-lxml==4.2.1
+lxml==4.9.1
 musdb==0.2.3
 museval==0.2.0
 google==2.0.1
