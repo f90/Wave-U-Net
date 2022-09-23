@@ -7,4 +7,4 @@ lxml==4.2.1
 musdb==0.2.3
 museval==0.2.0
 google==2.0.1
-protobuf==3.4.0
+protobuf==3.18.3
